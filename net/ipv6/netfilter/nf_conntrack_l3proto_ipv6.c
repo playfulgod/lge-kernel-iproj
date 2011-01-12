@@ -343,7 +343,7 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp6);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv6: can't register tcp.\n");
-		goto ret;
+		return ret;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp6);
