@@ -93,10 +93,6 @@ extern int kgsl_pagetable_count;
 /* Casting using container_of() for structures that kgsl owns. */
 #define KGSL_CONTAINER_OF(ptr, type, member) \
 		container_of(ptr, type, member)
-#define KGSL_YAMATO_DEVICE(device) \
-		KGSL_CONTAINER_OF(device, struct kgsl_yamato_device, dev)
-#define KGSL_G12_DEVICE(device) \
-		KGSL_CONTAINER_OF(device, struct kgsl_g12_device, dev)
 
 /* A macro for memory statistics - add the new size to the stat and if
    the statisic is greater then _max, set _max

@@ -383,7 +383,7 @@ static unsigned int gpuaddr(unsigned int *cmd, struct kgsl_memdesc *memdesc)
 }
 
 static void
-create_ib1(struct kgsl_yamato_context *drawctxt, unsigned int *cmd,
+create_ib1(struct adreno_context *drawctxt, unsigned int *cmd,
 	   unsigned int *start, unsigned int *end)
 {
 	cmd[0] = PM4_HDR_INDIRECT_BUFFER_PFD;
@@ -424,7 +424,7 @@ static unsigned int *reg_to_mem(unsigned int *cmds, uint32_t dst,
 
 static void build_reg_to_mem_range(unsigned int start, unsigned int end,
 				   unsigned int **cmd,
-				   struct kgsl_yamato_context *drawctxt)
+				   struct adreno_context *drawctxt)
 {
 	unsigned int i = start;
 
@@ -441,7 +441,7 @@ static void build_reg_to_mem_range(unsigned int start, unsigned int end,
 
 /* chicken restore */
 static unsigned int *build_chicken_restore_cmds(
-					struct kgsl_yamato_context *drawctxt,
+					struct adreno_context *drawctxt,
 					struct tmp_ctx *ctx)
 {
 	unsigned int *start = ctx->cmd;
@@ -464,7 +464,7 @@ static unsigned int *build_chicken_restore_cmds(
 *  requires: bool_shadow_gpuaddr, loop_shadow_gpuaddr
 */
 static void build_regsave_cmds(struct kgsl_device *device,
-			       struct kgsl_yamato_context *drawctxt,
+			       struct adreno_context *drawctxt,
 			       struct tmp_ctx *ctx)
 {
 	unsigned int *start = ctx->cmd;
@@ -637,7 +637,7 @@ static void build_regsave_cmds(struct kgsl_device *device,
 
 /*copy colour, depth, & stencil buffers from graphics memory to system memory*/
 static unsigned int *build_gmem2sys_cmds(struct kgsl_device *device,
-					 struct kgsl_yamato_context *drawctxt,
+					 struct adreno_context *drawctxt,
 					 struct tmp_ctx *ctx,
 					 struct gmem_shadow_t *shadow)
 {
@@ -849,7 +849,7 @@ static unsigned int *build_gmem2sys_cmds(struct kgsl_device *device,
 
 /*copy colour, depth, & stencil buffers from system memory to graphics memory*/
 static unsigned int *build_sys2gmem_cmds(struct kgsl_device *device,
-					 struct kgsl_yamato_context *drawctxt,
+					 struct adreno_context *drawctxt,
 					 struct tmp_ctx *ctx,
 					 struct gmem_shadow_t *shadow)
 {
@@ -1074,7 +1074,7 @@ static unsigned *reg_range(unsigned int *cmd, unsigned int start,
 }
 
 static void build_regrestore_cmds(struct kgsl_device *device,
-				  struct kgsl_yamato_context *drawctxt,
+				  struct adreno_context *drawctxt,
 				  struct tmp_ctx *ctx)
 {
 	unsigned int *start = ctx->cmd;
@@ -1246,7 +1246,7 @@ static void set_gmem_copy_quad(struct gmem_shadow_t *shadow)
 }
 
 /* quad for saving/restoring gmem */
-static void build_quad_vtxbuff(struct kgsl_yamato_context *drawctxt,
+static void build_quad_vtxbuff(struct adreno_context *drawctxt,
 		       struct tmp_ctx *ctx, struct gmem_shadow_t *shadow)
 {
 	unsigned int *cmd = ctx->cmd;
@@ -1269,7 +1269,7 @@ static void build_quad_vtxbuff(struct kgsl_yamato_context *drawctxt,
 }
 
 static void
-build_shader_save_restore_cmds(struct kgsl_yamato_context *drawctxt,
+build_shader_save_restore_cmds(struct adreno_context *drawctxt,
 			       struct tmp_ctx *ctx)
 {
 	unsigned int *cmd = ctx->cmd;
@@ -1410,7 +1410,7 @@ build_shader_save_restore_cmds(struct kgsl_yamato_context *drawctxt,
 /* create buffers for saving/restoring registers, constants, & GMEM */
 static int
 create_gpustate_shadow(struct kgsl_device *device,
-		       struct kgsl_yamato_context *drawctxt,
+		       struct adreno_context *drawctxt,
 		       struct tmp_ctx *ctx)
 {
 	int result;
@@ -1432,7 +1432,7 @@ create_gpustate_shadow(struct kgsl_device *device,
 	    = (unsigned int *)((char *)drawctxt->gpustate.hostptr + CMD_OFFSET);
 
 	/* build indirect command buffers to save & restore regs/constants */
-	kgsl_yamato_idle(device, KGSL_TIMEOUT_DEFAULT);
+	adreno_idle(device, KGSL_TIMEOUT_DEFAULT);
 	build_regrestore_cmds(device, drawctxt, ctx);
 	build_regsave_cmds(device, drawctxt, ctx);
 
@@ -1446,16 +1446,16 @@ create_gpustate_shadow(struct kgsl_device *device,
 
 /* create buffers for saving/restoring registers, constants, & GMEM */
 static int
-create_gmem_shadow(struct kgsl_yamato_device *yamato_device,
-		   struct kgsl_yamato_context *drawctxt,
+create_gmem_shadow(struct adreno_device *adreno_dev,
+		   struct adreno_context *drawctxt,
 		   struct tmp_ctx *ctx)
 {
-	struct kgsl_device *device = &yamato_device->dev;
+	struct kgsl_device *device = &adreno_dev->dev;
 	int result;
 
 	config_gmemsize(&drawctxt->context_gmem_shadow,
-			yamato_device->gmemspace.sizebytes);
-	ctx->gmem_base = yamato_device->gmemspace.gpu_base;
+			adreno_dev->gmemspace.sizebytes);
+	ctx->gmem_base = adreno_dev->gmemspace.gpu_base;
 
 	result = kgsl_sharedmem_vmalloc(
 				&drawctxt->context_gmem_shadow.gmemshadow,
@@ -1480,7 +1480,7 @@ create_gmem_shadow(struct kgsl_yamato_device *yamato_device,
 
 	/* build indirect command buffers to save & restore gmem */
 	/* Idle because we are reading PM override registers */
-	kgsl_yamato_idle(device, KGSL_TIMEOUT_DEFAULT);
+	adreno_idle(device, KGSL_TIMEOUT_DEFAULT);
 	drawctxt->context_gmem_shadow.gmem_save_commands = ctx->cmd;
 	ctx->cmd =
 	    build_gmem2sys_cmds(device, drawctxt, ctx,
@@ -1499,17 +1499,17 @@ create_gmem_shadow(struct kgsl_yamato_device *yamato_device,
 /* create a new drawing context */
 
 int
-kgsl_drawctxt_create(struct kgsl_device_private *dev_priv, uint32_t flags,
+adreno_drawctxt_create(struct kgsl_device_private *dev_priv, uint32_t flags,
 		     struct kgsl_context *context)
 {
-	struct kgsl_yamato_context *drawctxt;
+	struct adreno_context *drawctxt;
 	struct kgsl_device *device = dev_priv->device;
-	struct kgsl_yamato_device *yamato_device = KGSL_YAMATO_DEVICE(device);
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 	struct kgsl_pagetable *pagetable = dev_priv->process_priv->pagetable;
 	struct tmp_ctx ctx;
 	int ret;
 
-	drawctxt = kzalloc(sizeof(struct kgsl_yamato_context), GFP_KERNEL);
+	drawctxt = kzalloc(sizeof(struct adreno_context), GFP_KERNEL);
 
 	if (drawctxt == NULL)
 		return -ENOMEM;
@@ -1529,7 +1529,7 @@ kgsl_drawctxt_create(struct kgsl_device_private *dev_priv, uint32_t flags,
 
 	if (!(flags & KGSL_CONTEXT_NO_GMEM_ALLOC)) {
 		/* create gmem shadow */
-		ret = create_gmem_shadow(yamato_device, drawctxt, &ctx);
+		ret = create_gmem_shadow(adreno_dev, drawctxt, &ctx);
 		if (ret != 0)
 			goto err;
 	}
@@ -1546,17 +1546,17 @@ err:
 
 /* destroy a drawing context */
 
-int kgsl_drawctxt_destroy(struct kgsl_device *device,
+int adreno_drawctxt_destroy(struct kgsl_device *device,
 			  struct kgsl_context *context)
 {
-	struct kgsl_yamato_device *yamato_device = KGSL_YAMATO_DEVICE(device);
-	struct kgsl_yamato_context *drawctxt = context->devctxt;
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+	struct adreno_context *drawctxt = context->devctxt;
 
 	if (drawctxt == NULL)
 		return -EINVAL;
 
 	/* deactivate context */
-	if (yamato_device->drawctxt_active == drawctxt) {
+	if (adreno_dev->drawctxt_active == drawctxt) {
 		/* no need to save GMEM or shader, the context is
 		 * being destroyed.
 		 */
@@ -1565,10 +1565,10 @@ int kgsl_drawctxt_destroy(struct kgsl_device *device,
 				     CTXT_FLAGS_GMEM_SHADOW |
 				     CTXT_FLAGS_STATE_SHADOW);
 
-		kgsl_drawctxt_switch(yamato_device, NULL, 0);
+		adreno_drawctxt_switch(adreno_dev, NULL, 0);
 	}
 
-	kgsl_yamato_idle(device, KGSL_TIMEOUT_DEFAULT);
+	adreno_idle(device, KGSL_TIMEOUT_DEFAULT);
 
 	kgsl_sharedmem_free(&drawctxt->gpustate);
 	kgsl_sharedmem_free(&drawctxt->context_gmem_shadow.gmemshadow);
@@ -1580,11 +1580,11 @@ int kgsl_drawctxt_destroy(struct kgsl_device *device,
 }
 
 /* set bin base offset */
-int kgsl_drawctxt_set_bin_base_offset(struct kgsl_device *device,
+int adreno_drawctxt_set_bin_base_offset(struct kgsl_device *device,
 				      struct kgsl_context *context,
 				      unsigned int offset)
 {
-	struct kgsl_yamato_context *drawctxt = context->devctxt;
+	struct adreno_context *drawctxt = context->devctxt;
 
 	if (drawctxt == NULL)
 		return -EINVAL;
@@ -1596,13 +1596,13 @@ int kgsl_drawctxt_set_bin_base_offset(struct kgsl_device *device,
 
 /* switch drawing contexts */
 void
-kgsl_drawctxt_switch(struct kgsl_yamato_device *yamato_device,
-			struct kgsl_yamato_context *drawctxt,
+adreno_drawctxt_switch(struct adreno_device *adreno_dev,
+			struct adreno_context *drawctxt,
 			unsigned int flags)
 {
-	struct kgsl_yamato_context *active_ctxt =
-	  yamato_device->drawctxt_active;
-	struct kgsl_device *device = &yamato_device->dev;
+	struct adreno_context *active_ctxt =
+	  adreno_dev->drawctxt_active;
+	struct kgsl_device *device = &adreno_dev->dev;
 	unsigned int cmds[5];
 
 	if (drawctxt) {
@@ -1619,7 +1619,7 @@ kgsl_drawctxt_switch(struct kgsl_yamato_device *yamato_device,
 		return;
 
 	KGSL_CTXT_INFO(device, "from %p to %p flags %d\n",
-			yamato_device->drawctxt_active, drawctxt, flags);
+			adreno_dev->drawctxt_active, drawctxt, flags);
 	/* save old context*/
 	if (active_ctxt && active_ctxt->flags & CTXT_FLAGS_GPU_HANG)
 		KGSL_CTXT_WARN(device,
@@ -1629,17 +1629,19 @@ kgsl_drawctxt_switch(struct kgsl_yamato_device *yamato_device,
 		KGSL_CTXT_INFO(device,
 			"active_ctxt flags %08x\n", active_ctxt->flags);
 		/* save registers and constants. */
-		kgsl_ringbuffer_issuecmds(device, 0, active_ctxt->reg_save, 3);
+		adreno_ringbuffer_issuecmds(device, 0,
+				active_ctxt->reg_save, 3);
 
 		if (active_ctxt->flags & CTXT_FLAGS_SHADER_SAVE) {
 			/* save shader partitioning and instructions. */
-			kgsl_ringbuffer_issuecmds(device, KGSL_CMD_FLAGS_PMODE,
-						  active_ctxt->shader_save, 3);
+			adreno_ringbuffer_issuecmds(device,
+					KGSL_CMD_FLAGS_PMODE,
+					active_ctxt->shader_save, 3);
 
 			/* fixup shader partitioning parameter for
 			 *  SET_SHADER_BASES.
 			 */
-			kgsl_ringbuffer_issuecmds(device, 0,
+			adreno_ringbuffer_issuecmds(device, 0,
 					active_ctxt->shader_fixup, 3);
 
 			active_ctxt->flags |= CTXT_FLAGS_SHADER_RESTORE;
@@ -1650,18 +1652,19 @@ kgsl_drawctxt_switch(struct kgsl_yamato_device *yamato_device,
 			/* save gmem.
 			 * (note: changes shader. shader must already be saved.)
 			 */
-			kgsl_ringbuffer_issuecmds(device, KGSL_CMD_FLAGS_PMODE,
+			adreno_ringbuffer_issuecmds(device,
+				KGSL_CMD_FLAGS_PMODE,
 				active_ctxt->context_gmem_shadow.gmem_save, 3);
 
 			/* Restore TP0_CHICKEN */
-			kgsl_ringbuffer_issuecmds(device, 0,
+			adreno_ringbuffer_issuecmds(device, 0,
 				active_ctxt->chicken_restore, 3);
 
 			active_ctxt->flags |= CTXT_FLAGS_GMEM_RESTORE;
 		}
 	}
 
-	yamato_device->drawctxt_active = drawctxt;
+	adreno_dev->drawctxt_active = drawctxt;
 
 	/* restore new context */
 	if (drawctxt != NULL) {
@@ -1673,8 +1676,8 @@ kgsl_drawctxt_switch(struct kgsl_yamato_device *yamato_device,
 		cmds[2] = pm4_type3_packet(PM4_MEM_WRITE, 2);
 		cmds[3] = device->memstore.gpuaddr +
 				KGSL_DEVICE_MEMSTORE_OFFSET(current_context);
-		cmds[4] = (unsigned int)yamato_device->drawctxt_active;
-		kgsl_ringbuffer_issuecmds(device, 0, cmds, 5);
+		cmds[4] = (unsigned int)adreno_dev->drawctxt_active;
+		adreno_ringbuffer_issuecmds(device, 0, cmds, 5);
 		kgsl_mmu_setstate(device, drawctxt->pagetable);
 
 #ifndef CONFIG_MSM_KGSL_CFF_DUMP_NO_CONTEXT_MEM_DUMP
@@ -1688,30 +1691,31 @@ kgsl_drawctxt_switch(struct kgsl_yamato_device *yamato_device,
 		 *  (note: changes shader. shader must not already be restored.)
 		 */
 		if (drawctxt->flags & CTXT_FLAGS_GMEM_RESTORE) {
-			kgsl_ringbuffer_issuecmds(device, KGSL_CMD_FLAGS_PMODE,
+			adreno_ringbuffer_issuecmds(device,
+				KGSL_CMD_FLAGS_PMODE,
 				drawctxt->context_gmem_shadow.gmem_restore, 3);
 
 			/* Restore TP0_CHICKEN */
-			kgsl_ringbuffer_issuecmds(device, 0,
+			adreno_ringbuffer_issuecmds(device, 0,
 				drawctxt->chicken_restore, 3);
 
 			drawctxt->flags &= ~CTXT_FLAGS_GMEM_RESTORE;
 		}
 
 		/* restore registers and constants. */
-		kgsl_ringbuffer_issuecmds(device, 0,
+		adreno_ringbuffer_issuecmds(device, 0,
 					  drawctxt->reg_restore, 3);
 
 		/* restore shader instructions & partitioning. */
 		if (drawctxt->flags & CTXT_FLAGS_SHADER_RESTORE) {
-			kgsl_ringbuffer_issuecmds(device, 0,
+			adreno_ringbuffer_issuecmds(device, 0,
 					  drawctxt->shader_restore, 3);
 		}
 
 		cmds[0] = pm4_type3_packet(PM4_SET_BIN_BASE_OFFSET, 1);
 		cmds[1] = drawctxt->bin_base_offset;
 		if (device->chip_id != KGSL_CHIPID_LEIA_REV470)
-			kgsl_ringbuffer_issuecmds(device, 0, cmds, 2);
+			adreno_ringbuffer_issuecmds(device, 0, cmds, 2);
 
 	} else
 		kgsl_mmu_setstate(device, device->mmu.defaultpagetable);
