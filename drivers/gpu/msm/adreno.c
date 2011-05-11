@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -113,13 +108,6 @@ static struct adreno_device device_3d0 = {
 		.state = KGSL_STATE_INIT,
 		.active_cnt = 0,
 		.iomemname = KGSL_3D0_REG_MEMORY,
-		.display_off = {
-#ifdef CONFIG_HAS_EARLYSUSPEND
-			.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING,
-			.suspend = kgsl_early_suspend_driver,
-			.resume = kgsl_late_resume_driver,
-#endif
-		},
 	},
 	.gmemspace = {
 		.gpu_base = 0,
@@ -514,8 +502,6 @@ static int __devexit adreno_remove(struct platform_device *pdev)
 
 	adreno_ringbuffer_close(&adreno_dev->ringbuffer);
 	kgsl_device_platform_remove(device);
-
-	kgsl_ringbuffer_close(&device_3d->ringbuffer);
 
 	return 0;
 }
@@ -1149,18 +1135,15 @@ static int kgsl_check_interrupt_timestamp(struct kgsl_device *device,
 }
 
 /*
- wait_event_interruptible_timeout checks for the exit condition before
+ wait_io_event_interruptible_timeout checks for the exit condition before
  placing a process in wait q. For conditional interrupts we expect the
  process to already be in its wait q when its exit condition checking
  function is called.
 */
-#define kgsl_wait_event_interruptible_timeout(wq, condition, timeout, io)\
+#define kgsl_wait_io_event_interruptible_timeout(wq, condition, timeout)\
 ({									\
 	long __ret = timeout;						\
-	if (io)						\
-		__wait_io_event_interruptible_timeout(wq, condition, __ret);\
-	else						\
-		__wait_event_interruptible_timeout(wq, condition, __ret);\
+	__wait_io_event_interruptible_timeout(wq, condition, __ret);	\
 	__ret;								\
 })
 
@@ -1182,20 +1165,13 @@ static int adreno_waittimestamp(struct kgsl_device *device,
 		goto done;
 	}
 	if (!kgsl_check_timestamp(device, timestamp)) {
-		if (pwr->active_pwrlevel) {
-			int low_pwrlevel = pwr->num_pwrlevels -
-					KGSL_PWRLEVEL_LOW_OFFSET;
-			if (pwr->active_pwrlevel == low_pwrlevel)
-				io = 0;
-		}
 		mutex_unlock(&device->mutex);
 		/* We need to make sure that the process is placed in wait-q
 		 * before its condition is called */
-		status = kgsl_wait_event_interruptible_timeout(
+		status = kgsl_wait_io_event_interruptible_timeout(
 				device->wait_queue,
 				kgsl_check_interrupt_timestamp(device,
-					timestamp),
-				msecs_to_jiffies(msecs), io);
+					timestamp), msecs_to_jiffies(msecs));
 		mutex_lock(&device->mutex);
 
 		if (status > 0)

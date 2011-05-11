@@ -31,7 +31,6 @@
 
 #include <linux/idr.h>
 #include <linux/wakelock.h>
-#include <linux/earlysuspend.h>
 
 #include "kgsl_mmu.h"
 #include "kgsl_pwrctrl.h"
@@ -131,13 +130,6 @@ struct kgsl_memregion {
 	unsigned int sizebytes;
 };
 
-struct kgsl_event {
-	uint32_t timestamp;
-	void (*func)(struct kgsl_device *, void *, u32);
-	void *priv;
-	struct list_head list;
-};
-
 struct kgsl_device {
 	struct device *dev;
 	const char *name;
@@ -173,7 +165,6 @@ struct kgsl_device {
 	struct completion recovery_gate;
 	struct dentry *d_debugfs;
 	struct idr context_idr;
-	struct early_suspend display_off;
 
 	/* Logging levels */
 	int cmd_log;
@@ -182,8 +173,6 @@ struct kgsl_device {
 	int mem_log;
 	int pwr_log;
 	struct wake_lock idle_wakelock;
-
-	struct list_head events;
 };
 
 struct kgsl_context {
@@ -217,18 +206,6 @@ struct kgsl_process_private {
 struct kgsl_device_private {
 	struct kgsl_device *device;
 	struct kgsl_process_private *process_priv;
-};
-
-struct kgsl_devconfig {
-	struct kgsl_memregion regspace;
-
-	unsigned int     mmu_config;
-	uint32_t        mpu_base;
-	int              mpu_range;
-	uint32_t        va_base;
-	unsigned int     va_range;
-
-	struct kgsl_memregion gmemspace;
 };
 
 struct kgsl_device *kgsl_get_device(int dev_idx);

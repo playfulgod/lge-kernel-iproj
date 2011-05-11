@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/vmalloc.h>
@@ -25,7 +20,6 @@
 #include "adreno_ringbuffer.h"
 #include "adreno_postmortem.h"
 #include "adreno_debugfs.h"
-#include "kgsl_cffdump.h"
 
 #include "a200_reg.h"
 
@@ -804,8 +798,6 @@ int adreno_postmortem_dump(struct kgsl_device *device, int manual)
 	bool saved_nap;
 
 	BUG_ON(device == NULL);
-
-	kgsl_cffdump_hang(device->id);
 
 	/* For a manual dump, make sure that the system is idle */
 
