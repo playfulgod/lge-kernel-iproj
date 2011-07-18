@@ -14,7 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 #include <mach/socinfo.h>
+#include <mach/scm.h>
 
 #include "kgsl.h"
 #include "kgsl_pwrscale.h"
@@ -28,36 +30,27 @@ struct tz_priv {
 	unsigned int no_switch_cnt;
 	unsigned int skip_cnt;
 };
+spinlock_t tz_lock;
 
 #define SWITCH_OFF		200
 #define SWITCH_OFF_RESET_TH	40
 #define SKIP_COUNTER		500
-#define TZ_UPDATE_ID		0x01404000
-#define TZ_RESET_ID		0x01403000
+#define TZ_RESET_ID		0x3
+#define TZ_UPDATE_ID		0x4
 
 #ifdef CONFIG_MSM_SCM
 /* Trap into the TrustZone, and call funcs there. */
-static int __secure_tz_entry(u32 cmd, u32 val)
+static int __secure_tz_entry(u32 cmd, u32 val, u32 id)
 {
-	register u32 r0 asm("r0") = cmd;
-	register u32 r1 asm("r1") = 0x0;
-	register u32 r2 asm("r2") = val;
-
+	int ret;
+	spin_lock(&tz_lock);
 	__iowmb();
-	asm(
-		__asmeq("%0", "r0")
-		__asmeq("%1", "r0")
-		__asmeq("%2", "r1")
-		__asmeq("%3", "r2")
-		".arch_extension sec\n"
-		"smc    #0      @ switch to secure world\n"
-		: "=r" (r0)
-		: "r" (r0), "r" (r1), "r" (r2)
-		);
-	return r0;
+	ret = scm_call_atomic2(SCM_SVC_IO, cmd, val, id);
+	spin_unlock(&tz_lock);
+	return ret;
 }
 #else
-static int __secure_tz_entry(u32 cmd, u32 val)
+static int __secure_tz_entry(u32 cmd, u32 val, u32 id)
 {
 	return 0;
 }
@@ -161,7 +154,7 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 
 	idle = stats.total_time - stats.busy_time;
 	idle = (idle > 0) ? idle : 0;
-	val = __secure_tz_entry(TZ_UPDATE_ID, idle);
+	val = __secure_tz_entry(TZ_UPDATE_ID, idle, device->id);
 	if (val)
 		kgsl_pwrctrl_pwrlevel_change(device,
 					     pwr->active_pwrlevel + val);
@@ -178,7 +171,7 @@ static void tz_sleep(struct kgsl_device *device,
 {
 	struct tz_priv *priv = pwrscale->priv;
 
-	__secure_tz_entry(TZ_RESET_ID, 0);
+	__secure_tz_entry(TZ_RESET_ID, 0, device->id);
 	priv->no_switch_cnt = 0;
 }
 
@@ -195,6 +188,7 @@ static int tz_init(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 		return -ENOMEM;
 
 	priv->governor = TZ_GOVERNOR_ONDEMAND;
+	spin_lock_init(&tz_lock);
 	kgsl_pwrscale_policy_add_files(device, pwrscale, &tz_attr_group);
 
 	return 0;
