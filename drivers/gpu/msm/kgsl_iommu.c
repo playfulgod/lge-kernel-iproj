@@ -47,7 +47,7 @@ static void kgsl_iommu_destroy_pagetable(void *mmu_specific_pt)
 
 void *kgsl_iommu_create_pagetable(void)
 {
-	struct iommu_domain *domain = iommu_domain_alloc();
+	struct iommu_domain *domain = iommu_domain_alloc(0);
 	if (!domain)
 		KGSL_CORE_ERR("Failed to create iommu domain\n");
 
