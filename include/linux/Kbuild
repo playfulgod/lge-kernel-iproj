@@ -413,3 +413,4 @@ header-y += msm_ipc.h
 header-y += msm_charm.h
 header-y += tzcom.h
 header-y += genlock.h
+header-y += idle_stats_device.h
