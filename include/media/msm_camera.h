@@ -1008,6 +1008,7 @@ struct img_plane_info {
 	uint32_t ext_mode;
 	uint8_t num_planes;
 	struct plane_data plane[MAX_PLANES];
+	uint32_t sp_y_offset;
 	uint8_t vpe_can_use;
 };
 
