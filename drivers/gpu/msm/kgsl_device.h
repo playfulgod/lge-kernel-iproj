@@ -135,6 +135,14 @@ struct kgsl_mh {
 	int              mpu_range;
 };
 
+struct kgsl_event {
+	uint32_t timestamp;
+	void (*func)(struct kgsl_device *, void *, u32);
+	void *priv;
+	struct list_head list;
+};
+
+
 struct kgsl_device {
 	struct device *dev;
 	const char *name;
@@ -183,6 +191,7 @@ struct kgsl_device {
 	struct kobject pwrscale_kobj;
 	struct pm_qos_request_list *pm_qos_req_dma;
 	struct work_struct ts_expired_ws;
+	struct list_head events;
 };
 
 struct kgsl_context {
