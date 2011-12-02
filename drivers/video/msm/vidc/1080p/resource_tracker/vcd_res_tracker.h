@@ -57,6 +57,7 @@ struct res_trk_context {
 	uint32_t     pcl;
 #endif
 	u32 core_type;
+        u32 disable_dmx;
 };
 
 #ifdef CONFIG_MSM_BUS_SCALING
