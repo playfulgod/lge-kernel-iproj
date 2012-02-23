@@ -273,6 +273,11 @@ extern int printk_delay_msec;
 })
 
 void log_buf_kexec_setup(void);
+#if defined(CONFIG_LGE_HANDLE_PANIC)
+extern void set_crash_store_enable(void);
+extern void set_crash_store_disable(void);
+extern void store_crash_log(char *p);
+#endif
 #else
 static inline int vprintk(const char *s, va_list args)
 	__attribute__ ((format (printf, 1, 0)));

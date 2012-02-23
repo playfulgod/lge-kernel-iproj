@@ -722,6 +722,16 @@ void mipi_dsi_host_init(struct mipi_panel_info *pinfo)
 		if (pinfo->r_sel)
 			data |= BIT(0);
 		MIPI_OUTP(MIPI_DSI_BASE + 0x001c, data);
+		/* [I-Pjt/atnt & hdk] minjong.gong@lge.com Start ==> [
+		  * 2011.03.09, Add code to maintain MIPI clock in HS mode always for LGD 4.5" HD LCD.
+		  */
+#ifdef CONFIG_LGE_I_DISP_HSMODE
+			data =0;
+			data = MIPI_INP(MIPI_DSI_BASE + 0x00A8);
+			data = data | BIT(28);	/* BIT28 : CLKLN_HS_FORCE_REQUEST */
+			MIPI_OUTP(MIPI_DSI_BASE + 0x00A8, data);
+#endif
+		/* [I-Pjt/atnt & hdk] minjong.gong@lge.com End <== ] */
 	} else if (pinfo->mode == DSI_CMD_MODE) {
 		data = 0;
 		data |= ((pinfo->interleave_max & 0x0f) << 20);

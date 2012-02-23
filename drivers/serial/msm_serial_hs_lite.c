@@ -45,6 +45,8 @@
 #include <asm/mach-types.h>
 #include "msm_serial_hs_hwreg.h"
 
+//#define FELICA_DEBUG
+
 struct msm_hsl_port {
 	struct uart_port	uart;
 	char			name[16];
@@ -241,25 +243,53 @@ static void handle_rx(struct uart_port *port, unsigned int misr)
 	int count = 0;
 	struct msm_hsl_port *msm_hsl_port = UART_TO_MSM(port);
 
+#ifdef FELICA_DEBUG 
+    if (port->line == 3) pr_info(">>> %s\n", __func__);
+#endif
 	/*
 	 * Handle overrun. My understanding of the hardware is that overrun
 	 * is not tied to the RX buffer, so we handle the case out of band.
 	 */
 	if ((msm_hsl_read(port, UARTDM_SR_ADDR) & UARTDM_SR_OVERRUN_BMSK)) {
+#ifdef FELICA_DEBUG 
+        if (port->line == 3) pr_info("%s: UARTDM_SR_OVERRUN_BMSK\n", __func__);
+#endif
 		port->icount.overrun++;
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		msm_hsl_write(port, RESET_ERROR_STATUS, UARTDM_CR_ADDR);
 	}
 
 	if (misr & UARTDM_ISR_RXSTALE_BMSK) {
+#ifdef FELICA_DEBUG 
+        if (port->line == 3) {
+            pr_info("%s: UARTDM_ISR_RXSTALE_BMSK\n", __func__);
+            pr_info("%s: rx_total_snap = %u\n", __func__, msm_hsl_read(port, UARTDM_RX_TOTAL_SNAP_ADDR));
+            pr_info("%s: old_snap_state = %u\n", __func__, msm_hsl_port->old_snap_state);
+        }
+#endif
 		count = msm_hsl_read(port, UARTDM_RX_TOTAL_SNAP_ADDR) -
 			msm_hsl_port->old_snap_state;
 		msm_hsl_port->old_snap_state = 0;
 	} else {
+#ifdef FELICA_DEBUG 
+        if (port->line == 3) {
+            pr_info("%s: else...\n", __func__);
+            pr_info("%s: rfwr = %u\n", __func__, msm_hsl_read(port, UARTDM_RFWR_ADDR));
+            pr_info("%s: old_snap_state = %u\n", __func__, msm_hsl_port->old_snap_state);
+        }
+#endif
 		count = 4 * (msm_hsl_read(port, UARTDM_RFWR_ADDR));
 		msm_hsl_port->old_snap_state += count;
+#ifdef FELICA_DEBUG 
+        if (port->line == 3) {
+            pr_info("%s: old_snap_state = %u\n", __func__, msm_hsl_port->old_snap_state);
+        }
+#endif
 	}
 
+#ifdef FELICA_DEBUG 
+    if (port->line == 3) pr_info("%s: count=%d\n", __func__, count);
+#endif
 	/* and now the main RX loop */
 	while (count > 0) {
 		unsigned int c;
@@ -268,17 +298,47 @@ static void handle_rx(struct uart_port *port, unsigned int misr)
 		sr = msm_hsl_read(port, UARTDM_SR_ADDR);
 		if ((sr &
 		     UARTDM_SR_RXRDY_BMSK) == 0) {
+#ifdef FELICA_DEBUG 
+            if (port->line == 3) {
+                pr_info("%s: UARTDM_SR_RXRDY_BMSK\n", __func__);
+                pr_info("%s: old_snap_state = %u, count = %d\n", __func__,
+                        msm_hsl_port->old_snap_state, count);
+            }
+#endif
+
+#ifdef CONFIG_LGE_FELICA
+			if (msm_hsl_port->old_snap_state < count)
+                msm_hsl_port->old_snap_state = 0;
+            else
+#endif
 			msm_hsl_port->old_snap_state -= count;
 			break;
 		}
 		c = msm_hsl_read(port, UARTDM_RF_ADDR);
+#ifdef FELICA_DEBUG 
+        if (port->line == 3) pr_info("%s: [%d] 0x%08X\n", __func__, (count > 4) ? 4 : count, c);
+#endif
 		if (sr & UARTDM_SR_RX_BREAK_BMSK) {
+#ifdef FELICA_DEBUG 
+            if (port->line == 3) pr_info("%s: UARTDM_SR_RX_BREAK_BMSK\n", __func__);
+#endif
 			port->icount.brk++;
 			if (uart_handle_break(port))
+            {
+#ifdef FELICA_DEBUG
+            if (port->line == 3) pr_info("%s: uart_handle_break\n", __func__);
+#endif
 				continue;
+            }
 		} else if (sr & UARTDM_SR_PAR_FRAME_BMSK) {
+#ifdef FELICA_DEBUG
+            if (port->line == 3) pr_info("%s: UARTDM_SR_PAR_FRAME_BMSK\n", __func__);
+#endif
 			port->icount.frame++;
 		} else {
+#ifdef FELICA_DEBUG
+        if (port->line == 3) pr_info("%s: RX\n", __func__);
+#endif
 			port->icount.rx++;
 		}
 
@@ -297,6 +357,9 @@ static void handle_rx(struct uart_port *port, unsigned int misr)
 	}
 
 	tty_flip_buffer_push(tty);
+#ifdef FELICA_DEBUG
+        if (port->line == 3) pr_info("<<< %s\n", __func__);
+#endif
 }
 
 static void handle_tx(struct uart_port *port)
@@ -330,6 +393,9 @@ static void handle_tx(struct uart_port *port)
 		return;
 	}
 
+#ifdef FELICA_DEBUG
+    if (port->line == 3) pr_info("%s: count=%d\n", __func__, tx_count);
+#endif
 	while (tf_pointer < tx_count)  {
 		if (unlikely(!(msm_hsl_read(port, UARTDM_SR_ADDR) &
 			       UARTDM_SR_TXRDY_BMSK)))
@@ -359,6 +425,9 @@ static void handle_tx(struct uart_port *port)
 			break;
 		}
 		}
+#ifdef FELICA_DEBUG
+        if (port->line == 3) pr_info("%s: 0x%08X\n", __func__, x);
+#endif
 		msm_hsl_write(port, x, UARTDM_TF_ADDR);
 		xmit->tail = ((tx_count - tf_pointer < 4) ?
 			      (tx_count - tf_pointer + xmit->tail) :
@@ -497,6 +566,65 @@ static void msm_hsl_set_baud_rate(struct uart_port *port, unsigned int baud)
 	struct msm_hsl_port *msm_hsl_port = UART_TO_MSM(port);
 
 	switch (baud) {
+#ifdef CONFIG_LGE_FELICA
+	case 300:
+		baud_code = UARTDM_CSR_75;
+		rxstale = 1;
+		break;
+	case 600:
+		baud_code = UARTDM_CSR_150;
+		rxstale = 1;
+		break;
+	case 1200:
+		baud_code = UARTDM_CSR_300;
+		rxstale = 1;
+		break;
+	case 2400:
+		baud_code = UARTDM_CSR_600;
+		rxstale = 1;
+		break;
+	case 4800:
+		baud_code = UARTDM_CSR_1200;
+		rxstale = 1;
+		break;
+	case 9600:
+		baud_code = UARTDM_CSR_2400;
+		rxstale = 2;
+		break;
+	case 14400:
+		baud_code = UARTDM_CSR_3600;
+		rxstale = 3;
+		break;
+	case 19200:
+		baud_code = UARTDM_CSR_4800;
+		rxstale = 4;
+		break;
+	case 28800:
+		baud_code = UARTDM_CSR_7200;
+		rxstale = 6;
+		break;
+	case 38400:
+		baud_code = UARTDM_CSR_9600;
+		rxstale = 8;
+		break;
+	case 57600:
+		baud_code = UARTDM_CSR_14400;
+		rxstale = 16;
+		break;
+    case 230400:
+        baud_code = 0xee;
+        rxstale = 31;
+        break;
+    case 460800:
+        baud_code = 0xff;
+        rxstale = 31;
+        break;
+	case 115200:
+	default:
+		baud_code = UARTDM_CSR_28800;
+		rxstale = 31;
+		break;
+#else
 	case 300:
 		baud_code = UARTDM_CSR_75;
 		rxstale = 1;
@@ -557,6 +685,7 @@ static void msm_hsl_set_baud_rate(struct uart_port *port, unsigned int baud)
 		baud_code = UARTDM_CSR_28800;
 		rxstale = 31;
 		break;
+#endif
 	}
 
 	msm_hsl_write(port, baud_code, UARTDM_CSR_ADDR);
@@ -716,9 +845,27 @@ static void msm_hsl_set_termios(struct uart_port *port,
 	clk_en(port, 1);
 
 	/* calculate and set baud rate */
+    /* [FELICA_S] hansun.lee@lge.com 20110419 */
+    /* change default baudrate for felica */
+#ifdef CONFIG_LGE_FELICA
+    if (port->line == 3)
+    {
+        termios->c_cflag |= B460800;
+
+        baud = uart_get_baud_rate(port, termios, old, 300, 460800);
+        msm_hsl_set_baud_rate(port, baud);
+    }
+    else
+    {
+        baud = uart_get_baud_rate(port, termios, old, 300, 115200);
+        msm_hsl_set_baud_rate(port, baud);
+    }
+#else
 	baud = uart_get_baud_rate(port, termios, old, 300, 460800);
 
 	msm_hsl_set_baud_rate(port, baud);
+#endif
+    /* [FELICA_E] hansun.lee@lge.com 20110419 */
 
 	/* calculate parity */
 	mr = msm_hsl_read(port, UARTDM_MR2_ADDR);
@@ -899,7 +1046,7 @@ static void msm_hsl_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
-		ret = clk_set_rate(msm_hsl_port->clk, 7372800);
+	    ret = clk_set_rate(msm_hsl_port->clk, 7372800);
 		if (ret)
 			pr_err("%s(): Error setting UART clock rate\n",
 							__func__);
@@ -966,6 +1113,20 @@ static struct msm_hsl_port msm_hsl_uart_ports[] = {
 			.line = 2,
 		},
 	},
+    /* [FELICA_S] hansun.lee@lge.com 20110419 */
+    /* add uart for felica, /dev/ttyHSL3 */
+#ifdef CONFIG_LGE_FELICA
+	{
+		.uart = {
+			.iotype = UPIO_MEM,
+			.ops = &msm_hsl_uart_pops,
+			.flags = UPF_BOOT_AUTOCONF,
+			.fifosize = 64,
+			.line = 3,
+		},
+	},
+#endif
+    /* [FELICA_E] hansun.lee@lge.com 20110419 */
 };
 
 #define UART_NR	ARRAY_SIZE(msm_hsl_uart_ports)

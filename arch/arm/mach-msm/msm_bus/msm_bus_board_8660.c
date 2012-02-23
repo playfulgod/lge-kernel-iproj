@@ -278,12 +278,12 @@ static struct msm_bus_node_info mmss_fabric_info[]  = {
 	{
 		.id = MSM_BUS_MASTER_MDP_PORT0,
 		.masterp = MSM_BUS_MASTER_PORT_MDP_PORT0,
-		.tier = MSM_BUS_BW_TIER2,
+		.tier = MSM_BUS_BW_TIER1,
 	},
 	{
 		.id = MSM_BUS_MASTER_MDP_PORT1,
 		.masterp = MSM_BUS_MASTER_PORT_MDP_PORT1,
-		.tier = MSM_BUS_BW_TIER2,
+		.tier = MSM_BUS_BW_TIER1,
 	},
 	{
 		.id = MSM_BUS_MMSS_MASTER_ADM1_PORT0,
@@ -360,7 +360,12 @@ static struct msm_bus_node_info mmss_fabric_info[]  = {
 		.slavep = MSM_BUS_MMSS_SLAVE_PORT_APPS_FAB_0,
 		.masterp = MSM_BUS_APPSS_MASTER_PORT_FAB_MMSS,
 		.tier = MSM_BUS_MMSS_TIERED_SLAVE_FAB_APPS,
+		/* neo.kang@lge.com 30550g migration find LCD bug */
+#if 0 // 30550g original
 		.buswidth = 16,
+#else
+		.buswidth = 8,
+#endif
 	},
 	{
 		.id = MSM_BUS_SLAVE_MM_IMEM,

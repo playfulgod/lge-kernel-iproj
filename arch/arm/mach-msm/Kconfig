@@ -814,7 +814,8 @@ config MSM_SMD_DEBUG
 	  between the ARM9 and ARM11
 
 config MSM_SDIO_AL
-	depends on ((ARCH_MSM7X30 || MACH_MSM8X60_CHARM_FFA || MACH_MSM8X60_CHARM_SURF) && HAS_WAKELOCK)
+#platform.team@lge.com
+	depends on ((ARCH_MSM7X30 || MACH_MSM8X60_CHARM_FFA || MACH_MSM8X60_CHARM_SURF || MACH_LGE_I_BOARD) && HAS_WAKELOCK)
 	default y
 	tristate "SDIO-Abstraction-Layer"
 	help
@@ -1498,5 +1499,12 @@ config MSM_SCHED_FAST_CPU_ONLINE
 	help
 	  Bypass scheduler domain reconstruction when onlining the second
 	  CPU on 8X60 to speed up operation.
+
+config LGE_SDIO_DEBUG_CH
+	bool "SDIO DEBUG CH driver"
+	depends on MSM_SDIO_AL
+	default n
+	help
+	  Support Debug Channels over SDIO interface.
 
 endif

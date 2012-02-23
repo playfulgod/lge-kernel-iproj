@@ -1187,4 +1187,53 @@ config RMNET_SMD_DATA_CHANNEL
 
 endchoice
 
+config USB_SUPPORT_LGE_SERIAL_FROM_ARM9_MEID
+	boolean "Serial Number from ARM9's MEID(CDMA class)"
+	depends on USB_SUPPORT_LGE_GADGET_CDMA
+	select LGE_SUPPORT_RAPI
+	help
+	  Get usb device's serial number from arm's MEID(CDMA class)
+
+	default n
+
+config LGE_USB_GADGET_DRIVER
+	tristate "LG USB Gadget Driver"
+	depends on USB_GADGET
+	help
+	  LG USB gadget driver
+	
+	default n
+
+config LGE_USB_AUTORUN
+	boolean "Autorun support in LGE Android model(common)"
+	depends on LGE_USB_GADGET_DRIVER
+	help
+	  It supports Autorun feature in LGE Android model if it is needed.
+
+	default n
+
+config LGE_USB_VZW_DRIVER
+	boolean "Verizon PID support"
+	depends on LGE_USB_GADGET_DRIVER
+	help
+	  It supports Verion PID in LG driver.
+
+	default n
+
+config LGE_USB_TWO_MODEM
+	boolean "I-Project Support Two Modem"
+	depends on LGE_USB_GADGET_DRIVER
+	help
+	  Two modems are supported in I-project.
+
+	default n
+
+config LGE_USB_FACTORY
+	boolean "Factory USB support in LGE Android model(common)"
+	depends on LGE_USB_GADGET_DRIVER
+	help
+	  Factory USB are supported in I-project.
+
+	default n
+
 endif # USB_GADGET

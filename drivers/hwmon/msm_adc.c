@@ -99,6 +99,12 @@ struct msm_adc_drv {
 
 static bool epm_init;
 static bool epm_fluid_enabled;
+#ifdef CONFIG_LGE_PM_CURRENT_CABLE_TYPE
+/* kiwone.seo@lge.com, we must do this only once in boot-up to get accurate ADC value.
+	if we do this over twice, the kernel panic is occured(unstable IRQ)
+*/
+static bool adc_first_read;
+#endif
 
 /* Needed to support file_op interfaces */
 static struct msm_adc_drv *msm_adc_drv;
@@ -818,6 +824,16 @@ int32_t adc_channel_request_conv(void *h, struct completion *conv_complete_evt)
 					msm_adc_drv->pdev->dev.platform_data;
 	struct msm_adc_channels *channel = &pdata->channel[client->adc_chan];
 	struct adc_conv_slot *slot;
+#ifdef CONFIG_LGE_PM_CURRENT_CABLE_TYPE
+	/* kiwone.seo@lge.com, we must do this only once in boot-up to get accurate ADC value.
+	   if we do this over twice, the kernel panic is occured(unstable IRQ)
+	 */
+	if (!adc_first_read) {
+		pr_err("====%s: Pm8058 xoadc calibration\n", __func__);
+		pm8058_xoadc_calib_device(0);
+		adc_first_read = true;
+	}
+#endif
 
 	channel->adc_access_fn->adc_slot_request(channel->adc_dev_instance,
 									&slot);
@@ -1463,6 +1479,12 @@ static int msm_adc_probe(struct platform_device *pdev)
 		else
 			msm_rpc_adc_init(pdev);
 	}
+#ifdef CONFIG_LGE_PM_CURRENT_CABLE_TYPE
+/* kiwone.seo@lge.com, we must do this only once in boot-up to get accurate ADC value.
+	if we do this over twice, the kernel panic is occured(unstable IRQ)
+ */
+	adc_first_read = false;
+#endif
 
 	pr_info("msm_adc successfully registered\n");
 

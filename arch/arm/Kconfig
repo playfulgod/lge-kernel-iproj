@@ -199,6 +199,9 @@ config VECTORS_BASE
 	help
 	  The base address of exception vectors.
 
+#platform.team@lge.com 2011.01
+source "lge/Kconfig"
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -1259,6 +1262,8 @@ config LOCAL_TIMERS
 
 source kernel/Kconfig.preempt
 
+#source kernel/Kconfig.hz #for logcat time resolutions lge
+
 config HZ
 	int
 	default 128 if ARCH_L7200
@@ -1801,3 +1806,7 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+#LG_KERNEL_EXPAND -- start
+source "kernel/Kconfig.sysprof"
+#LG_KERNEL_EXPAND -- end

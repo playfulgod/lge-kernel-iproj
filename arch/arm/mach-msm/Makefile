@@ -132,7 +132,9 @@ obj-$(CONFIG_MACH_QSD8X50_FFA) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50A_SURF) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50A_FFA) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50A_ST1_5) += board-qsd8x50a-st1x.o
-obj-$(CONFIG_ARCH_MSM8X60) += devices-msm8x60.o clock-local.o clock-8x60.o acpuclock-8x60.o
+#platform.team@lge.com
+#differentiate devices-msm8x60.o per board.
+obj-$(CONFIG_ARCH_MSM8X60) += clock-local.o clock-8x60.o acpuclock-8x60.o
 obj-$(CONFIG_ARCH_MSM8X60) += clock-rpm.o spm.o restart.o
 obj-$(CONFIG_ARCH_MSM8X60) += saw-regulator.o
 obj-$(CONFIG_ARCH_MSM8X60) += rpm-regulator.o
@@ -203,8 +205,18 @@ endif
 obj-$(CONFIG_ARCH_MSM7X27) += gpiomux-7x27.o gpiomux-v1.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM7X30) += gpiomux-7x30.o gpiomux-v1.o gpiomux.o
 obj-$(CONFIG_ARCH_QSD8X50) += gpiomux-8x50.o gpiomux-v1.o gpiomux.o
-obj-$(CONFIG_ARCH_MSM8X60) += gpiomux-8x60.o gpiomux-v2.o gpiomux.o
-obj-$(CONFIG_ARCH_MSM8960) += gpiomux-v2.o gpiomux.o
+#platform.team@lge.com
+#differentiate gpiomux-8x60.o per board.
+obj-$(CONFIG_ARCH_MSM8X60) += gpiomux-v2.o gpiomux.o
+obj-$(CONFIG_ARCH_MSM8X60) += mdm.o
+
+#LGE_ADD_S, [soojin.chae@lge.com], 2011-08-05, < Add SDIO DEBUG CH feature >
+ifdef CONFIG_MSM_SDIO_AL
+obj-$(CONFIG_LGE_SDIO_DEBUG_CH) += sdio_debug_ch.o
+endif
+#LGE_ADD_E, [soojin.chae@lge.com], 2011-08-05, < Add SDIO DEBUG CH feature >
+
+
 ifdef CONFIG_MSM_V2_TLMM
 obj-y	+= gpio-v2.o
 else

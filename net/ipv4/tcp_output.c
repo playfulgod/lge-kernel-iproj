@@ -123,7 +123,10 @@ static __u16 tcp_advertise_mss(struct sock *sk)
 		mss = dst_metric(dst, RTAX_ADVMSS);
 		tp->advmss = mss;
 	}
-
+/* LGE_CHANGE_S, [dongchul.lim@lge.com], < Block useless MTU size change > */
+   // mss = 1370; 
+   // tp->advmss = mss;
+/* LGE_CHANGE_E, [dongchul.lim@lge.com], < Block useless MTU size change > */
 	return (__u16)mss;
 }
 
@@ -228,21 +231,25 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	 * following RFC2414. Senders, not following this RFC,
 	 * will be satisfied with 2.
 	 */
-	if (mss > (1 << *rcv_wscale)) {
-		int init_cwnd = 4;
-		if (mss > 1460 * 3)
-			init_cwnd = 2;
-		else if (mss > 1460)
-			init_cwnd = 3;
-		/* when initializing use the value from init_rcv_wnd
-		 * rather than the default from above
-		 */
-		if (init_rcv_wnd)
-			*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
-		else
-			*rcv_wnd = min(*rcv_wnd, init_cwnd * mss);
-	}
-
+	/* LGE_CHANGE_S, [LGE_DATA_001][beerbug]*/
+    (*rcv_wnd) = space;
+    /* LGE_CHANGE_E, [LGE_DATA_001][beerbug]*/
+//LGE_CHANGE_S, kidong.kim], < change tcp windows size >
+//	if (mss > (1 << *rcv_wscale)) {
+//		int init_cwnd = 4;
+//		if (mss > 1460 * 3)
+//			init_cwnd = 2;
+//		else if (mss > 1460)
+//			init_cwnd = 3;
+//		/* when initializing use the value from init_rcv_wnd
+//		 * rather than the default from above
+//		 */
+//		if (init_rcv_wnd)
+//			*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
+//		else
+//			*rcv_wnd = min(*rcv_wnd, init_cwnd * mss);
+//	}
+//LGE_CHANGE_E, kidong.kim], < change tcp windows size >
 	/* Set the clamp no higher than max representable value */
 	(*window_clamp) = min(65535U << (*rcv_wscale), *window_clamp);
 }

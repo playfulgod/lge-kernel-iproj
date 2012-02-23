@@ -22,6 +22,9 @@
  */
 
 /* INCLUDES */
+
+#include "sdio_al_private.h"
+
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -30,7 +33,6 @@
 #include <linux/dma-mapping.h>
 #include <mach/dma.h>
 #include <linux/mmc/sdio_func.h>
-#include <sdio_al_private.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/kthread.h>

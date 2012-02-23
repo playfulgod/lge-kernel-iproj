@@ -1,6 +1,6 @@
 obj-$(CONFIG_MSM8X60_RTAC) += rtac.o
 obj-y += audio_dev_ctl.o
-obj-y += board-msm8x60-audio.o
+obj-$(CONFIG_MACH_MSM8X60_SURF) += board-msm8x60-audio.o
 obj-$(CONFIG_TIMPANI_CODEC) += snddev_icodec.o
 obj-y += snddev_ecodec.o snddev_mi2s.o snddev_virtual.o
 obj-y += apr.o apr_tal.o q6core.o dsp_debug.o

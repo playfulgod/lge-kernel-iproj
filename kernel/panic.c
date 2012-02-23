@@ -77,6 +77,57 @@ static void panic_blink_one_second(void)
  *
  *	This function never returns.
  */
+
+/* [ULS] using sdio_debug_ch variables : start - yocheol.kim@lge.com - 20110725 */
+
+// buffers used by ULS client
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH
+
+#define ULS_LOG_FORMAT_VAL_MODE			(1)			// 1: uls mode, 0: test mode - always 1 is used
+#define ULS_LOG_FORMAT_LEN_FILE_NAME	(50)		// refer to 	ERR_LOG_MAX_FILE_LEN in errlog.h
+#define ULS_LOG_FORMAT_LEN_LINE			(4)			// uint32 in errlog.h
+#define ULS_LOG_FORMAT_LEN_ERR_MSG		(80)		// refer to ERR_LOG_MAX_MSG_LEN in errlog.h
+#define ULS_LOG_FORMAT_LEN_SW_VER		(100)		//[ULS] for s/w ver display < wj1208.jo@lge.com >
+typedef struct 
+{
+	short	mode; 			// mode is always 1 (0: test mode, 1: ULS mode)
+	short	total_size; 	// header + body
+} tULS_Rx_Header;
+typedef struct  
+{
+	tULS_Rx_Header header;
+	char 	filename[ULS_LOG_FORMAT_LEN_FILE_NAME];
+	int		line;
+	char 	msg[ULS_LOG_FORMAT_LEN_ERR_MSG];	
+	char 	sw_ver[ULS_LOG_FORMAT_LEN_SW_VER];	//[ULS] for s/w ver display < wj1208.jo@lge.com >
+} tULS_Rx_Data;
+
+typedef struct
+{
+	bool				valid;		// 0: invalid, 1: valid
+	tULS_Rx_Data		rx_data;	// contains debugging information
+} tULS_PRx_Data;
+
+
+// for UI display
+extern tULS_PRx_Data		g_uls_rx_data;	// refer to sdio_debug_ch.c
+extern int uls_mdm_crash_fatal_flag;		// refer to mdm.c
+extern int uls_mdm_status_low_flag;		// refer to mdm.c
+extern int uls_the_kind_of_subsys;	// refer to subsystem_restart.c
+extern int g_mdm_status_change_counter;
+
+// for subsystem discrimination
+enum {
+	ULS_NO_SUBSYSTEM,			// no subsystem crash was occurred.
+	ULS_SUBSYSTEM_MDM,		// mdm  subsystem crash was occurred.
+	ULS_SUBSYSTEM_MODEM,		// AP 8k modem subsystem crash was occured.
+	ULS_SUBSYSTEM_LPASS,		// AP lpass subsystem crash was occured.
+	ULS_SUBSYSTEM_OTHER		// this should not be used.
+};
+
+#endif  /* CONFIG_LGE_SDIO_DEBUG_CH */
+/* [ULS] using sdio_debug_ch variables : end - yocheol.kim@lge.com - 20110725 */
+
 NORET_TYPE void panic(const char * fmt, ...)
 {
 	static char buf[1024];
@@ -95,7 +146,88 @@ NORET_TYPE void panic(const char * fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	set_crash_store_enable();
+#endif
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
+	printk(KERN_EMERG "Kernel Version: %s", linux_banner);
+ 
+/* [ULS] Display MDM Crash : start - yocheol.kim@lge.com - 20110725 */
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH
+	printk(KERN_EMERG "g_mdm_status_change_counter = %d",g_mdm_status_change_counter);
+// only operated for subsystem crash
+if (uls_the_kind_of_subsys > ULS_NO_SUBSYSTEM)
+{
+	// err fatal was occured
+	if(uls_mdm_crash_fatal_flag == true)	// uls_the_kind_of_subsys == ULS_SUBSYSTEM_MDM
+	{
+		printk(KERN_EMERG "\n\nCheck MP side operation (9k_modem)(%d)(%d)!!\n", 
+								uls_mdm_crash_fatal_flag, 
+								uls_mdm_status_low_flag); 
+		
+	if(g_uls_rx_data.valid == true)
+	{
+	printk(KERN_EMERG "\n\nMDM CRASH!!!\n");
+	printk(KERN_EMERG "ULS_CRASH_POINT: %s  line : %d\n", g_uls_rx_data.rx_data.filename, g_uls_rx_data.rx_data.line);
+	printk(KERN_EMERG "ULS_CRASH_MSG: %s \n", g_uls_rx_data.rx_data.msg);
+	printk(KERN_EMERG "SW_VERSION : %s \n", g_uls_rx_data.rx_data.sw_ver); //[ULS] for s/w ver display < wj1208.jo@lge.com >
+		}
+		else 
+		{
+			printk(KERN_EMERG "MDM Crash occured! (but, NO ULS LOG)(%d)(%d)",
+										uls_mdm_crash_fatal_flag,
+										uls_mdm_status_low_flag);
+		}
+	}
+	else	// other subsystem crash (8k modem, lpass) or mdm2ap status is low
+	{
+		extern int smsm_check_for_modem_crash(void);
+
+		if (uls_the_kind_of_subsys == ULS_SUBSYSTEM_MODEM)
+		{
+			printk(KERN_EMERG "\n\nCheck AP side operation(8k_modem)!!\n");
+			smsm_check_for_modem_crash();
+		}
+		else if (uls_the_kind_of_subsys == ULS_SUBSYSTEM_LPASS)
+		{
+			printk(KERN_EMERG "\n\nCheck AP side operation(lpass)!!\n");
+			smsm_check_for_modem_crash();
+		}
+		else {
+			if (uls_mdm_status_low_flag == true)
+			{
+				printk(KERN_EMERG "\n\nCheck MDM side operation(%d)(%d)!!\n", 
+										uls_mdm_crash_fatal_flag, 
+										uls_mdm_status_low_flag);
+
+				if(g_uls_rx_data.valid == true)
+				{
+				printk(KERN_EMERG "\n\nMDM CRASH!!!\n");
+				printk(KERN_EMERG "ULS_CRASH_POINT: %s  line : %d\n", g_uls_rx_data.rx_data.filename, g_uls_rx_data.rx_data.line);
+				printk(KERN_EMERG "ULS_CRASH_MSG: %s \n", g_uls_rx_data.rx_data.msg);
+				}
+			}
+			else {
+				printk(KERN_EMERG "\n\nCheck AP side operation(Analyse kernel log)!!\n");				
+			}
+		}			
+	}
+}
+else {
+	; // may be kernel panic - no operation..
+}
+
+// initialization
+uls_the_kind_of_subsys = ULS_NO_SUBSYSTEM;
+uls_mdm_crash_fatal_flag = false;
+uls_mdm_status_low_flag = false;
+
+#endif /*CONFIG_LGE_SDIO_DEBUG_CH */
+/* [ULS] Display MDM Crash : end - yocheol.kim@lge.com - 20110725 */
+
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	set_crash_store_disable();
+#endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	dump_stack();
 #endif

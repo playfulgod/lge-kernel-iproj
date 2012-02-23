@@ -411,8 +411,10 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info)
 		off += 4;
 	}
 
+#ifndef CONFIG_LGE_I_DISP_UNDERRUN
 	if (panel_info)
 		mipi_dsi_phy_pll_config(panel_info->clk_rate);
+#endif 
 
 	/* pll ctrl 0 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x200, pd->pll[0]);
@@ -464,13 +466,19 @@ void mipi_dsi_clk_disable(void)
 static int mipi_dsi_off(struct platform_device *pdev)
 {
 	int ret = 0;
+#ifdef CONFIG_LGE_I_DISP_HSMODE
+	uint32 data;
+#endif
 	struct msm_fb_data_type *mfd;
 	struct msm_panel_info *pinfo;
 
 	mfd = platform_get_drvdata(pdev);
 	pinfo = &mfd->panel_info;
 
+#ifdef CONFIG_LGE_I_DISP_OV_MUTEX
+#else
 	mutex_lock(&mfd->dma->ov_mutex);
+#endif
 
 	mdp4_overlay_dsi_state_set(ST_DSI_SUSPEND);
 
@@ -480,6 +488,17 @@ static int mipi_dsi_off(struct platform_device *pdev)
 		mdp4_dsi_cmd_dma_busy_wait(mfd);
 		mdp4_dsi_blt_dmap_busy_wait(mfd);
 	}
+	
+	/* [I-Pjt/atnt & hdk] minjong.gong@lge.com Start ==> [
+  * 2011.03.24, Add code to reset HS mode 
+  */
+#ifdef CONFIG_LGE_I_DISP_HSMODE
+	data = 0;
+	data = MIPI_INP(MIPI_DSI_BASE + 0x00A8);
+	data = data & ~(BIT(28));	/* BIT28 : CLKLN_HS_FORCE_REQUEST */
+	MIPI_OUTP(MIPI_DSI_BASE + 0x00A8, data);
+#endif
+/* [I-Pjt/atnt & hdk] minjong.gong@lge.com End <== ] */
 
 	/* change to DSI_CMD_MODE since it needed to
 	 * tx DCS dsiplay off comamnd to panel
@@ -538,7 +557,10 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(0);
 
+#ifdef CONFIG_LGE_I_DISP_OV_MUTEX
+#else
 	mutex_unlock(&mfd->dma->ov_mutex);
+#endif
 
 	pr_debug("%s:\n", __func__);
 
@@ -635,6 +657,10 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	}
 
 	mipi_dsi_host_init(mipi);
+
+#ifndef CONFIG_LGE_DEV_NEEDS_TO_FIX
+	mipi_dsi_cmd_bta_sw_trigger(); /* clean up ack_err_status */
+#endif
 
 	ret = panel_next_on(pdev);
 

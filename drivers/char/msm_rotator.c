@@ -1162,7 +1162,9 @@ msm_rotator_open(struct inode *inode, struct file *filp)
 	if (i == MAX_SESSIONS)
 		return -EBUSY;
 
-	filp->private_data = (void *)task_tgid_nr(current);
+	//2011.07.12 jinho.jang - preivew broken issue workarouond
+	filp->private_data = (void *)current->pid; 
+	//filp->private_data = (void *)task_tgid_nr(current);
 
 	return 0;
 }

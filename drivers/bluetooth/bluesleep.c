@@ -51,6 +51,15 @@
 #include <net/bluetooth/hci_core.h> /* event notifications */
 #include "hci_uart.h"
 
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined (CONFIG_MACH_LGE_I_BOARD)
+
+#include "../../lge/include/board_lge.h"
+
+static struct bluesleep_platform_data *bs_platform_data = 0;
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
+
 #define BT_SLEEP_DBG
 #ifndef BT_SLEEP_DBG
 #define BT_DBG(fmt, arg...)
@@ -88,6 +97,14 @@ DECLARE_DELAYED_WORK(sleep_workqueue, bluesleep_sleep_work);
 #define BT_PROTO	0x01
 #define BT_TXDATA	0x02
 #define BT_ASLEEP	0x04
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#ifndef CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH
+#define CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH
+#endif
+
+//Un-comment for root permission
+//#define BTLA_ROOT_PERMISSION
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 
 /* global pointer to a single hci device. */
 static struct hci_dev *bluesleep_hdev;
@@ -160,11 +177,23 @@ void bluesleep_sleep_wakeup(void)
 		BT_DBG("waking up...");
 		/* Start the timer */
 		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if !defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
 		gpio_set_value(bsi->ext_wake, 0);
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 		clear_bit(BT_ASLEEP, &flags);
 		/*Activating UART */
 		hsuart_power(1);
 	}
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
+	else {
+		/* Just start the timer if not asleep */
+		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
+	}
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 }
 
 /**
@@ -206,10 +235,16 @@ static void bluesleep_hostwake_task(unsigned long data)
 
 	spin_lock(&rw_lock);
 
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
+	bluesleep_sleep_wakeup();
+#else
 	if (gpio_get_value(bsi->host_wake))
 		bluesleep_rx_busy();
 	else
 		bluesleep_rx_idle();
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 
 	spin_unlock(&rw_lock);
 }
@@ -290,15 +325,33 @@ static void bluesleep_tx_timer_expire(unsigned long data)
 	/* were we silent during the last timeout? */
 	if (!test_bit(BT_TXDATA, &flags)) {
 		BT_DBG("Tx has been idle");
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if !defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
 		gpio_set_value(bsi->ext_wake, 1);
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 		bluesleep_tx_idle();
 	} else {
 		BT_DBG("Tx data during last period");
 		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL*HZ));
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
+		/* clear the incoming data flag only when there is no enqueued data on transport and can be asleep */
+		if(msm_hs_tx_empty(bsi->uport)){
+			clear_bit(BT_TXDATA, &flags);
+		}
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 	}
 
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
+	/* Make sure the incoming data flag not to be cleard when timer expired */
+#else
 	/* clear the incoming data flag */
 	clear_bit(BT_TXDATA, &flags);
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 
 	spin_unlock_irqrestore(&rw_lock, irq_flags);
 }
@@ -447,6 +500,14 @@ static int bluepower_write_proc_btwake(struct file *file, const char *buffer,
 	}
 
 	if (buf[0] == '0') {
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
+		if (test_bit(BT_ASLEEP, &flags)) {
+		    BT_DBG("Wake-up UART first if asleep");
+		    bluesleep_outgoing_data();
+		}
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 		gpio_set_value(bsi->ext_wake, 0);
 	} else if (buf[0] == '1') {
 		gpio_set_value(bsi->ext_wake, 1);
@@ -561,6 +622,12 @@ static int __init bluesleep_probe(struct platform_device *pdev)
 	if (!bsi)
 		return -ENOMEM;
 
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined (CONFIG_MACH_LGE_I_BOARD)	
+	bs_platform_data = (struct bluesleep_platform_data *)pdev->dev.platform_data;
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_IO,
 				"gpio_host_wake");
 	if (!res) {
@@ -601,6 +668,12 @@ static int __init bluesleep_probe(struct platform_device *pdev)
 		goto free_bt_ext_wake;
 	}
 
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#if defined(CONFIG_MACH_LGE_I_BOARD)
+	bsi->uport= msm_hs_get_bt_uport(bs_platform_data->bluetooth_port_num);
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
+
 
 	return 0;
 
@@ -639,6 +712,13 @@ static struct platform_driver bluesleep_driver = {
 		.owner = THIS_MODULE,
 	},
 };
+
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#ifndef BTLA_ROOT_PERMISSION
+#define AID_BLUETOOTH	1002
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
+
 /**
  * Initializes the module.
  * @return On success, 0. On error, -1, and <code>errno</code> is set
@@ -678,6 +758,12 @@ static int __init bluesleep_init(void)
 	}
 	ent->read_proc = bluepower_read_proc_btwake;
 	ent->write_proc = bluepower_write_proc_btwake;
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#ifndef BTLA_ROOT_PERMISSION
+	ent->uid = AID_BLUETOOTH;
+	ent->gid = AID_BLUETOOTH;
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 
 	/* read only proc entries */
 	if (create_proc_read_entry("hostwake", 0, sleep_dir,
@@ -696,6 +782,12 @@ static int __init bluesleep_init(void)
 	}
 	ent->read_proc = bluesleep_read_proc_proto;
 	ent->write_proc = bluesleep_write_proc_proto;
+//[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
+#ifndef BTLA_ROOT_PERMISSION
+	ent->uid = AID_BLUETOOTH;
+	ent->gid = AID_BLUETOOTH;
+#endif
+//[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 
 	/* read only proc entries */
 	if (create_proc_read_entry("asleep", 0,

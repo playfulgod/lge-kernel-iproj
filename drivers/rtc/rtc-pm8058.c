@@ -25,9 +25,10 @@
 #include <linux/pm_runtime.h>
 
 #define PM8058_RTC_CTRL		0x1E8
-	#define PM8058_RTC_ENABLE	BIT(7)
-	#define PM8058_RTC_ALARM_ENABLE	BIT(1)
-	#define PM8058_RTC_ABORT_ENABLE	BIT(0)
+#define PM8058_RTC_ENABLE	BIT(7)
+#define PM8058_RTC_ALARM_ENABLE	BIT(1)
+#define PM8058_RTC_ABORT_ENABLE	BIT(0)
+
 #define PM8058_RTC_ALARM_CTRL	0x1E9
 	#define PM8058_RTC_ALARM_CLEAR	BIT(0)
 #define PM8058_RTC_TEST		0x1F6
@@ -315,7 +316,6 @@ pm8058_rtc0_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return 0;
 }
 
-
 static int
 pm8058_rtc0_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
@@ -429,22 +429,22 @@ static int __devinit pm8058_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc_enable;
 	}
 
-	/* Enable RTC, ABORT enable and disable alarm */
-	reg |= ((PM8058_RTC_ENABLE | PM8058_RTC_ABORT_ENABLE) &
-			~PM8058_RTC_ALARM_ENABLE);
+    /* Enable RTC, ABORT enable and disable alarm */
+    reg |= ((PM8058_RTC_ENABLE | PM8058_RTC_ABORT_ENABLE) &
+      ~PM8058_RTC_ALARM_ENABLE);
 
-	rc = pm8058_write(pm_chip, PM8058_RTC_CTRL, &reg, 1);
-	if (rc < 0) {
-		pr_err("%s: PM8058 write failed\n", __func__);
-		goto fail_rtc_enable;
-	}
+    rc = pm8058_write(pm_chip, PM8058_RTC_CTRL, &reg, 1);
+    if (rc < 0) {
+      pr_err("%s: PM8058 write failed\n", __func__);
+      goto fail_rtc_enable;
+    }
 
-	/* Clear RTC alarm control register */
-	rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_ALARM_CTRL,
-							&reg_alarm, 1);
-	if (rc < 0) {
-		pr_err("%s: PM8058 read failed\n", __func__);
-		goto fail_rtc_enable;
+    /* Clear RTC alarm control register */
+    rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_ALARM_CTRL,
+  						&reg_alarm, 1);
+    if (rc < 0) {
+      pr_err("%s: PM8058 read failed\n", __func__);
+      goto fail_rtc_enable;
 	}
 
 	reg_alarm &= ~PM8058_RTC_ALARM_CLEAR;

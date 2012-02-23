@@ -256,10 +256,11 @@ static void handle_modem_crash(void)
 	if (msm_reset_hook)
 		msm_reset_hook();
 	*/
-
+#if !defined(CONFIG_LGE_ERROR_HANDLER)
 	/* in this case the modem or watchdog should reboot us */
 	for (;;)
 		;
+#endif/*CONFIG_LGE_ERROR_HANDLER*/
 }
 
 int smsm_check_for_modem_crash(void)

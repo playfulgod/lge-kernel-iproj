@@ -1,0 +1,38 @@
+#platform.team@lge.com	2011.01
+
+menu "Audio"
+source "lge/com_device/audio/Kconfig"
+endmenu 
+
+#ella.hwang@lge.com	2011.05.05
+menu "Broadcast"
+source "lge/com_device/broadcast/Kconfig"
+endmenu 
+
+menu "Camera"
+source "lge/com_device/camera/Kconfig"
+endmenu
+
+menu "Display"
+source "lge/com_device/display/Kconfig"
+endmenu 
+
+menu "Input"
+source "lge/com_device/input/Kconfig"
+endmenu
+
+menu "Misc."
+source "lge/com_device/misc/Kconfig"
+endmenu
+
+menu "Power"
+source "lge/com_device/power/Kconfig"
+endmenu
+
+menu "Felica"
+source "lge/com_device/felica/Kconfig"
+endmenu
+
+menu "MHL"
+source "lge/com_device/mhl_v1/Kconfig"
+endmenu

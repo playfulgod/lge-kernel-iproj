@@ -25,6 +25,12 @@
 #include <linux/pmic8058-batt-alarm.h>
 #include <linux/mfd/pmic8058.h>
 
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#include <linux/wakelock.h>
+#include <linux/msm-charger.h>
+#include <linux/max17040_battery.h>
+#endif
+
 /* PMIC 8058 Battery Alarm SSBI registers */
 #define	REG_THRESHOLD			0x023
 #define	REG_CTRL1			0x024
@@ -95,14 +101,45 @@
  * are disabled by default and must be turned on by calling
  * pm8058_batt_alarm_state_set.
  */
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#define DEFAULT_THRESHOLD_LOWER		3500
+#define DEFAULT_THRESHOLD_UPPER		4350
+#else
 #define DEFAULT_THRESHOLD_LOWER		3200
 #define DEFAULT_THRESHOLD_UPPER		4300
+#endif
 #define DEFAULT_HOLD_TIME		PM8058_BATT_ALARM_HOLD_TIME_16_MS
 #define DEFAULT_USE_PWM			1
 #define DEFAULT_PWM_SCALER		9
 #define DEFAULT_PWM_DIVIDER		8
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#define DEFAULT_LOWER_ENABLE		1
+#define DEFAULT_UPPER_ENABLE		0 /* now, not used */
+#else
 #define DEFAULT_LOWER_ENABLE		0
 #define DEFAULT_UPPER_ENABLE		0
+#endif
+
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+/* kiwone.seo@lge.com 2011-08-14, bug fix of resume charging and low battery alarm */
+#define AUTO_CHARGING_RESUME_MV_CALC 4250
+#endif
+
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#define LGE_DEBUG
+
+#define P00_THRESHOLD_LOWER		DEFAULT_THRESHOLD_LOWER		/* 3500mV */
+#define P01_THRESHOLD_LOWER		P00_THRESHOLD_LOWER + 50	/* 3550mV */
+#define P03_THRESHOLD_LOWER		P01_THRESHOLD_LOWER + 50	/* 3600mV */
+#define P15_THRESHOLD_LOWER		P03_THRESHOLD_LOWER + 50	/* 3650mV */
+
+struct wake_lock batt_alarm_wake_lock;
+extern int max17040_get_battery_capacity_percent(void);
+extern int max17040_get_battery_mvolts(void);
+extern int is_chg_plugged_in(void);
+extern int batt_alarm_state;
+int threshold_mv = DEFAULT_THRESHOLD_LOWER;
+#endif
 
 struct pm8058_batt_alarm_device {
 	struct srcu_notifier_head		irq_notifier_list;
@@ -160,6 +197,17 @@ int pm8058_batt_alarm_state_set(int enable_lower_comparator,
 	if (enable_lower_comparator || enable_upper_comparator)
 		reg_ctrl1 = CTRL1_BATT_ALARM_EN_MASK;
 
+#ifdef LGE_DEBUG
+	if (!enable_lower_comparator && !enable_upper_comparator)
+		pr_info("BATTERY ALARM SET DISABLE\n");
+	else if(enable_lower_comparator && enable_upper_comparator)
+		pr_info("BATTERY ALARM SET ENABLE\n");
+	else if(enable_lower_comparator && !enable_upper_comparator)
+		pr_info("BATTERY ALARM LOWER SET ENABLE\n");
+	else if(!enable_lower_comparator && enable_upper_comparator)
+		pr_info("BATTERY ALARM UPPER SET ENABLE\n");
+#endif
+
 	mutex_lock(&battdev->batt_mutex);
 	rc = pm8058_reg_write(battdev->pm_chip, REG_CTRL1, reg_ctrl1,
 				CTRL1_BATT_ALARM_EN_MASK, &battdev->reg_ctrl1);
@@ -190,6 +238,7 @@ int pm8058_batt_alarm_threshold_set(int lower_threshold_mV,
 	int step, fine_step, rc;
 	u8 reg_threshold = 0, reg_ctrl2 = 0;
 
+	pr_err("%s : lower_threshold_mV = %d, upper_threshold_mV = %d\n", __func__, lower_threshold_mV, upper_threshold_mV);
 	if (!battdev) {
 		pr_err("no battery alarm device found.\n");
 		return -ENXIO;
@@ -353,6 +402,10 @@ int pm8058_batt_alarm_status_read(void)
 			? PM8058_BATT_ALARM_STATUS_ABOVE_UPPER : 0);
 	mutex_unlock(&battdev->batt_mutex);
 
+#ifdef LGE_DEBUG
+	pr_info("LOW BATT ALARM = %d, UPPER BATT ALARM = %d\n", (battdev->reg_ctrl1 & CTRL1_STATUS_LOWER_MASK), (battdev->reg_ctrl1 & CTRL1_STATUS_UPPER_MASK));
+#endif
+
 	if (rc) {
 		pr_err("pm8058_read failed, rc=%d\n", rc);
 		return rc;
@@ -482,6 +535,10 @@ static irqreturn_t pm8058_batt_alarm_isr(int irq, void *data)
 
 	if (battdev) {
 		status = pm8058_batt_alarm_status_read();
+
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+		batt_alarm_state = status;
+#endif
 
 		if (status < 0)
 			pr_err("failed to read status, rc=%d\n", status);
@@ -615,13 +672,42 @@ bail:
 	return rc;
 }
 
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+/* kiwone.seo@lge.com 2011-08-14, bug fix of resume charging and low battery alarm */
+int pm8058_batt_alarm_config(void)
+#else
 static int pm8058_batt_alarm_config(void)
+#endif
 {
 	int rc = 0;
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+	int mv;
 
+	if (!is_chg_plugged_in()) {
+		mv = max17040_get_battery_mvolts();
+
+		if (mv > P15_THRESHOLD_LOWER)
+			threshold_mv = P15_THRESHOLD_LOWER;
+		else if (mv > P03_THRESHOLD_LOWER && mv <= P15_THRESHOLD_LOWER)
+			threshold_mv = P03_THRESHOLD_LOWER;
+		else if (mv > P01_THRESHOLD_LOWER && mv <= P03_THRESHOLD_LOWER)
+			threshold_mv = P01_THRESHOLD_LOWER;
+		else
+			threshold_mv = P00_THRESHOLD_LOWER;
+		rc = pm8058_batt_alarm_threshold_set(threshold_mv,
+			DEFAULT_THRESHOLD_UPPER);
+	}
+	else
+#endif
 	/* Use default values when no platform data is provided. */
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+/* kiwone.seo@lge.com 2011-08-14, bug fix of resume charging and low battery alarm */
+		rc = pm8058_batt_alarm_threshold_set(AUTO_CHARGING_RESUME_MV_CALC, 
+			DEFAULT_THRESHOLD_UPPER);
+#else
 	rc = pm8058_batt_alarm_threshold_set(DEFAULT_THRESHOLD_LOWER,
 		DEFAULT_THRESHOLD_UPPER);
+#endif
 	if (rc) {
 		pr_err("threshold_set failed, rc=%d\n", rc);
 		goto done;
@@ -650,6 +736,41 @@ static int pm8058_batt_alarm_config(void)
 done:
 	return rc;
 }
+
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+/* kiwone.seo@lge.com 2011-08-14, bug fix of resume charging and low battery alarm */
+EXPORT_SYMBOL(pm8058_batt_alarm_config);
+#endif
+
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#if 0 /* not used */
+static int pm8058_notifier_batt_alarm(struct notifier_block *this,
+		unsigned long code,
+		void *data)
+{
+	switch(code)
+	{
+		case CTRL1_STATUS_UPPER_MASK:
+			pr_info("UPPER ALARM\n");
+			break;
+
+		case CTRL1_STATUS_LOWER_MASK:
+			batt_alarm_state = 1;
+			pr_info("LOWER ALARM\n");
+			break;
+
+		default:
+			break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block nb = {
+	.notifier_call = pm8058_notifier_batt_alarm,
+};
+#endif
+#endif
 
 static int __devinit pm8058_batt_alarm_probe(struct platform_device *pdev)
 {
@@ -698,6 +819,12 @@ static int __devinit pm8058_batt_alarm_probe(struct platform_device *pdev)
 	if (rc)
 		goto exit_free_dev;
 
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#if 0 /* not used */
+	pm8058_batt_alarm_register_notifier(&nb);
+#endif
+#endif
+
 	pr_notice("OK\n");
 	return 0;
 
@@ -720,10 +847,49 @@ static int __devexit pm8058_batt_alarm_remove(struct platform_device *pdev)
 	free_irq(battdev->irq, battdev);
 	kfree(battdev);
 
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+#if 0 /* not used */
+	pm8058_batt_alarm_unregister_notifier(&nb);
+#endif
+#endif
+
 	the_battalarm = NULL;
 
 	return 0;
 }
+
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+static int pm8058_batt_alarm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int pm8058_batt_alarm_resume(struct device *dev)
+{
+	int soc;
+
+	msm_charger_notify_event(NULL, CHG_BATT_LOW_EVENT);
+
+	soc = max17040_get_battery_capacity_percent();
+	if (soc == 15 || soc == 3 || soc == 1 || soc == 0) {
+		wake_lock(&batt_alarm_wake_lock);
+		pr_info("wake lock..............\n");
+		wake_unlock(&batt_alarm_wake_lock);
+	}
+	else if (!is_chg_plugged_in()) {
+		pm8058_batt_alarm_config();
+	}
+	else
+		pm8058_batt_alarm_state_set(1, 0);
+
+	return 0;
+}
+
+static struct dev_pm_ops pm8058_batt_alarm_pm_ops = {
+	.suspend	= pm8058_batt_alarm_suspend,
+	.resume		= pm8058_batt_alarm_resume,
+};
+#endif
 
 static struct platform_driver pm8058_batt_alarm_driver = {
 	.probe	= pm8058_batt_alarm_probe,
@@ -731,16 +897,25 @@ static struct platform_driver pm8058_batt_alarm_driver = {
 	.driver	= {
 		.name = "pm8058-batt-alarm",
 		.owner = THIS_MODULE,
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+		.pm = &pm8058_batt_alarm_pm_ops,
+#endif
 	},
 };
 
 static int __init pm8058_batt_alarm_init(void)
 {
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+	wake_lock_init(&batt_alarm_wake_lock, WAKE_LOCK_SUSPEND, "pm8058_batt_alarm");
+#endif
 	return platform_driver_register(&pm8058_batt_alarm_driver);
 }
 
 static void __exit pm8058_batt_alarm_exit(void)
 {
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+	wake_lock_destroy(&batt_alarm_wake_lock);
+#endif
 	platform_driver_unregister(&pm8058_batt_alarm_driver);
 }
 

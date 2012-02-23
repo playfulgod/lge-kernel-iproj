@@ -517,6 +517,25 @@ out:
 	return ret;
 }
 
+/* [LGE_UPDATE_S by kyungho.kong@lge.com] */
+#if defined(CONFIG_MACH_LGE_I_BOARD_DCM) && defined(CONFIG_LGE_SWITCHING_CHARGER_BQ24160_DOCOMO_ONLY)
+unsigned charging_current;
+
+
+void msm_otg_set_chg_current(unsigned mA)
+{
+  charging_current = mA;
+}
+
+unsigned msm_otg_get_chg_current(void)
+{
+  return charging_current;
+}
+EXPORT_SYMBOL(msm_otg_get_chg_current);
+#endif
+/* [LGE_UPDATE_E by kyungho.kong@lge.com] */
+
+
 static int msm_otg_set_power(struct otg_transceiver *xceiv, unsigned mA)
 {
 	static enum chg_type 	curr_chg = USB_CHG_TYPE__INVALID;
@@ -524,6 +543,10 @@ static int msm_otg_set_power(struct otg_transceiver *xceiv, unsigned mA)
 	struct msm_otg_platform_data *pdata = dev->pdata;
 	enum chg_type 		new_chg = atomic_read(&dev->chg_type);
 	unsigned 		charge = mA;
+
+#if defined(CONFIG_MACH_LGE_I_BOARD_DCM) && defined(CONFIG_LGE_SWITCHING_CHARGER_BQ24160_DOCOMO_ONLY)
+  msm_otg_set_chg_current(mA);
+#endif
 
 	/* Call chg_connected only if the charger has changed */
 	if (new_chg != curr_chg && pdata->chg_connected) {

@@ -77,9 +77,12 @@ void __diag_sdio_send_req(void)
 	}
 }
 
+
 static void diag_read_sdio_work_fn(struct work_struct *work)
 {
+
 	__diag_sdio_send_req();
+
 }
 
 int diagfwd_connect_sdio(void)
@@ -124,6 +127,7 @@ int diagfwd_read_complete_sdio(void)
 
 void diag_read_mdm_work_fn(struct work_struct *work)
 {
+
 	if (driver->sdio_ch) {
 		wait_event_interruptible(driver->wait_q, (sdio_write_avail
 				(driver->sdio_ch) >= driver->read_len_mdm));
@@ -137,6 +141,7 @@ void diag_read_mdm_work_fn(struct work_struct *work)
 		usb_diag_read(driver->mdm_ch, driver->usb_read_mdm_ptr);
 		APPEND_DEBUG('y');
 	}
+
 }
 
 static void diag_sdio_notify(void *ctxt, unsigned event)

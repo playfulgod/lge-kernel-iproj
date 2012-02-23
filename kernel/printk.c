@@ -807,6 +807,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 #endif
 
 	p = printk_buf;
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	store_crash_log(p);
+#endif
 
 	/* Do we have a loglevel in the string? */
 	if (p[0] == '<') {

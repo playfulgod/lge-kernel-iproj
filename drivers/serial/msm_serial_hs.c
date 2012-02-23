@@ -2030,19 +2030,19 @@ static int msm_hs_runtime_idle(struct device *dev)
 
 static int msm_hs_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct
-						    platform_device, dev);
-	struct msm_hs_port *msm_uport = &q_uart_port[pdev->id];
-	msm_hs_request_clock_on(&msm_uport->uport);
+//	struct platform_device *pdev = container_of(dev, struct
+//						    platform_device, dev);
+//	struct msm_hs_port *msm_uport = &q_uart_port[pdev->id];
+//	msm_hs_request_clock_on(&msm_uport->uport);
 	return 0;
 }
 
 static int msm_hs_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct
-						    platform_device, dev);
-	struct msm_hs_port *msm_uport = &q_uart_port[pdev->id];
-	msm_hs_request_clock_off(&msm_uport->uport);
+//	struct platform_device *pdev = container_of(dev, struct
+//						    platform_device, dev);
+//	struct msm_hs_port *msm_uport = &q_uart_port[pdev->id];
+//	msm_hs_request_clock_off(&msm_uport->uport);
 	return 0;
 }
 
@@ -2085,6 +2085,17 @@ static struct uart_ops msm_hs_ops = {
 	.release_port = msm_hs_release_port,
 	.request_port = msm_hs_request_port,
 };
+
+//[LGE_UPDATE_S] 20110420, sangyeol.lee@lge.com, [START]
+#if defined(CONFIG_MACH_LGE_I_BOARD)
+struct uart_port* msm_hs_get_bt_uport(unsigned int line)
+{
+	return &q_uart_port[line].uport;
+}
+EXPORT_SYMBOL(msm_hs_get_bt_uport);
+#endif
+//[LGE_UPDATE_E] 20110420, sangyeol.lee@lge.com,  [END]
+
 
 module_init(msm_serial_hs_init);
 module_exit(msm_serial_hs_exit);

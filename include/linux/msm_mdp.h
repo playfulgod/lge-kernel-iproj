@@ -18,6 +18,9 @@
 #include <linux/types.h>
 #include <linux/fb.h>
 
+//jinho.jang - add msm_rotator_control_status
+//#define MSM_ROTATOR_IOCTL_CHECK
+
 #define MSMFB_IOCTL_MAGIC 'm'
 #define MSMFB_GRP_DISP          _IOW(MSMFB_IOCTL_MAGIC, 1, unsigned int)
 #define MSMFB_BLIT              _IOW(MSMFB_IOCTL_MAGIC, 2, unsigned int)
@@ -54,6 +57,13 @@
 #define MSMFB_MIXER_INFO       _IOWR(MSMFB_IOCTL_MAGIC, 148, \
 						struct msmfb_mixer_info_req)
 
+#ifdef MSM_ROTATOR_IOCTL_CHECK
+#define MSMFB_ROTATOR_IOCTL_ROTATE     _IOW(MSMFB_IOCTL_MAGIC, 148, unsigned int)
+#endif
+
+// case 00627432  QCT HDMI patch
+#define MSMFB_OVERLAY_PLAY_WAIT _IOWR(MSMFB_IOCTL_MAGIC, 149, \
+						struct msmfb_overlay_data)
 
 #define FB_TYPE_3D_PANEL 0x10101010
 #define MDP_IMGTYPE2_START 0x10000

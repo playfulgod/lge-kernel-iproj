@@ -68,6 +68,11 @@ extern struct platform_device msm_gsbi4_qup_i2c_device;
 extern struct platform_device msm_gsbi7_qup_i2c_device;
 extern struct platform_device msm_gsbi8_qup_i2c_device;
 extern struct platform_device msm_gsbi9_qup_i2c_device;
+
+#if defined (CONFIG_LGE_SENSOR_DCOMPASS)|| defined (CONFIG_LGE_SENSOR_PROXIMITY)
+extern struct platform_device msm_gsbi10_qup_i2c_device;
+#endif
+
 extern struct platform_device msm_gsbi12_qup_i2c_device;
 
 extern struct platform_device msm_device_sps;

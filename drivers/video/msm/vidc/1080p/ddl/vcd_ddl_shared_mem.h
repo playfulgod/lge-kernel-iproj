@@ -175,6 +175,10 @@ void vidc_sm_set_idr_decode_only(struct ddl_buf_addr *shared_mem,
 	u32 enable);
 void vidc_sm_set_concealment_color(struct ddl_buf_addr *shared_mem,
 	u32 conceal_ycolor, u32 conceal_ccolor);
+//S qct patch case#00584622 , 2011-08-22 youngsoon.lim
+void vidc_sm_set_mpeg4_profile_override(struct ddl_buf_addr *shared_mem,  
+	enum vidc_sm_mpeg4_profileinfo profile_info);
+//E qct patch case#00584622
 void vidc_sm_set_chroma_addr_change(struct ddl_buf_addr *shared_mem,
 	u32 addr_change);
 void vidc_sm_set_mpeg4_profile_override(struct ddl_buf_addr *shared_mem,

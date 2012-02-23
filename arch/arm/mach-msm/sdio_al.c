@@ -20,7 +20,8 @@
  *
  * To be used with Qualcomm's SDIO-Client connected to this host.
  */
-#include <sdio_al_private.h>
+
+#include "sdio_al_private.h"
 
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -830,6 +831,7 @@ static int read_mailbox(struct sdio_al_device *sdio_al_dev, int from_isr)
 	u32 thresh_intr_mask = 0;
 	int is_closing = 0;
 
+
 	if (sdio_al_dev->is_err) {
 		SDIO_AL_ERR(__func__);
 		return 0;
@@ -840,8 +842,10 @@ static int read_mailbox(struct sdio_al_device *sdio_al_dev, int from_isr)
 
 	pr_debug(MODULE_NAME ":before sdio_memcpy_fromio.\n");
 	memset(mailbox, 0, sizeof(struct sdio_mailbox));
+
 	ret = sdio_memcpy_fromio(func1, mailbox,
 			HW_MAILBOX_ADDR, sizeof(*mailbox));
+
 	pr_debug(MODULE_NAME ":after sdio_memcpy_fromio.\n");
 	if (ret) {
 		pr_err(MODULE_NAME ":Fail to read Mailbox for card %d,"
@@ -991,7 +995,11 @@ static int read_mailbox(struct sdio_al_device *sdio_al_dev, int from_isr)
 		   We need to keep reading mailbox to wait for the appropriate
 		   write avail and cannot sleep. Ignore SMEM channel that has
 		   only one direction. */
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH
+		if (strcmp(ch->name, "SDIO_SMEM") && strcmp(ch->name, "SDIO_ULS"))
+#else /* QCT original source */
 		if (strcmp(ch->name, "SDIO_SMEM"))
+#endif /* CONFIG_LGE_SDIO_DEBUG_CH */
 			any_write_pending |=
 			(new_write_avail < ch->ch_config.max_tx_threshold);
 	}
@@ -1030,6 +1038,7 @@ static int read_mailbox(struct sdio_al_device *sdio_al_dev, int from_isr)
 		/* Restart inactivity timer if any activity on the channel */
 		restart_inactive_time(sdio_al_dev);
 	}
+
 
 	pr_debug(MODULE_NAME ":end %s.\n", __func__);
 
@@ -1265,6 +1274,7 @@ static int sdio_write_cmd54(struct mmc_card *card, unsigned fn,
 	int incr_addr = 1; /* MUST */
 	int write = 1;
 
+
 	BUG_ON(!card);
 	BUG_ON(fn > 7);
 	BUG_ON(blocks == 1 && blksz > 512);
@@ -1329,6 +1339,7 @@ static int sdio_write_cmd54(struct mmc_card *card, unsigned fn,
 		}
 	}
 
+
 	return 0;
 }
 
@@ -1346,6 +1357,7 @@ static int sdio_ch_write(struct sdio_channel *ch, const u8 *buf, u32 len)
 	int remain_bytes = len % blksz;
 	struct mmc_card *card = NULL;
 	u32 fn = ch->func->num;
+
 
 	if (len == 0) {
 		pr_err(MODULE_NAME ":channel %s trying to write 0 bytes\n",
@@ -1385,6 +1397,7 @@ static int sdio_ch_write(struct sdio_channel *ch, const u8 *buf, u32 len)
 		ch->sdio_al_dev->is_err = true;
 		return ret;
 	}
+
 
 	return ret;
 }
@@ -2203,6 +2216,7 @@ static void sdio_func_irq(struct sdio_func *func)
 {
 	struct sdio_al_device *sdio_al_dev = sdio_get_drvdata(func);
 
+
 	pr_debug(MODULE_NAME ":start %s.\n", __func__);
 
 	if (sdio_al_dev == NULL) {
@@ -2217,6 +2231,7 @@ static void sdio_func_irq(struct sdio_func *func)
 		restart_timer(sdio_al_dev);
 
 	read_mailbox(sdio_al_dev, true);
+
 
 	pr_debug(MODULE_NAME ":end %s.\n", __func__);
 }
@@ -2766,6 +2781,7 @@ static int sdio_read_internal(struct sdio_channel *ch, void *data, int len)
 	int ret = 0;
 	struct sdio_al_device *sdio_al_dev = NULL;
 
+
 	if (!ch) {
 		pr_err(MODULE_NAME ":%s: NULL channel\n",  __func__);
 		return -ENODEV;
@@ -2789,6 +2805,7 @@ static int sdio_read_internal(struct sdio_channel *ch, void *data, int len)
 	sdio_al_dev = ch->sdio_al_dev;
 	if (sdio_al_verify_dev(sdio_al_dev, __func__))
 		return -ENODEV;
+
 
 	sdio_claim_host(sdio_al_dev->card->sdio_func[0]);
 
@@ -2941,6 +2958,7 @@ int sdio_write(struct sdio_channel *ch, const void *data, int len)
 	sdio_al_dev = ch->sdio_al_dev;
 	if (sdio_al_verify_dev(sdio_al_dev, __func__))
 		return -ENODEV;
+
 
 	sdio_claim_host(sdio_al_dev->card->sdio_func[0]);
 
@@ -3699,6 +3717,7 @@ static void sdio_al_print_info(void)
 		sdio_print_mailbox(buf, hw_mailbox);
 	}
 }
+
 
 static struct sdio_device_id sdio_al_sdioid[] = {
     {.class = 0, .vendor = 0x70, .device = 0x2460},

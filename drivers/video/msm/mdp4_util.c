@@ -370,40 +370,41 @@ irqreturn_t mdp4_isr(int irq, void *ptr)
 
 	mdp_is_in_isr = TRUE;
 
-	/* complete all the reads before reading the interrupt
-	* status register - eliminate effects of speculative
-	* reads by the cpu
-	*/
-	rmb();
-	isr = inpdw(MDP_INTR_STATUS);
-	if (isr == 0)
-		goto out;
+		/* complete all the reads before reading the interrupt
+		 * status register - eliminate effects of speculative
+		 * reads by the cpu
+		 */
+		rmb();
+		isr = inpdw(MDP_INTR_STATUS);
+		if (isr == 0)
+			goto out;
 
-	mdp4_stat.intr_tot++;
-	mask = inpdw(MDP_INTR_ENABLE);
-	outpdw(MDP_INTR_CLEAR, isr);
+		mdp4_stat.intr_tot++;
+		mask = inpdw(MDP_INTR_ENABLE);
+		outpdw(MDP_INTR_CLEAR, isr);
 
-	if (isr & INTR_PRIMARY_INTF_UDERRUN) {
-		mdp4_stat.intr_underrun_p++;
-		/* When underun occurs mdp clear the histogram registers
-		that are set before in hw_init so restore them back so
-		that histogram works.*/
-		MDP_OUTP(MDP_BASE + 0x95010, 1);
-		outpdw(MDP_BASE + 0x9501c, INTR_HIST_DONE);
-		if (mdp_is_hist_start == TRUE) {
-			MDP_OUTP(MDP_BASE + 0x95004,
-					mdp_hist.frame_cnt);
-			MDP_OUTP(MDP_BASE + 0x95000, 1);
+		if (isr & INTR_PRIMARY_INTF_UDERRUN) {
+			mdp4_stat.intr_underrun_p++;
+			/* When underun occurs mdp clear the histogram registers
+			that are set before in hw_init so restore them back so
+			that histogram works.*/
+			MDP_OUTP(MDP_BASE + 0x95010, 1);
+			outpdw(MDP_BASE + 0x9501c, INTR_HIST_DONE);
+			if (mdp_is_hist_start == TRUE) {
+				MDP_OUTP(MDP_BASE + 0x95004,
+						mdp_hist.frame_cnt);
+				MDP_OUTP(MDP_BASE + 0x95000, 1);
+			}
 		}
-	}
+
 
 	if (isr & INTR_EXTERNAL_INTF_UDERRUN)
 		mdp4_stat.intr_underrun_e++;
 
 	isr &= mask;
 
-	if (isr == 0)
-		goto out;
+		if (isr == 0)
+			goto out;
 
 	panel = mdp4_overlay_panel_list();
 	if (isr & INTR_PRIMARY_VSYNC) {
@@ -1295,6 +1296,104 @@ void mdp4_vg_csc_post_lv_setup(int vp_num)
 	}
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 }
+
+//LGE_FW_TDMB [START]
+#if defined(CONFIG_LGE_BROADCAST)||defined(CONFIG_LGE_BROADCAST_DCM)
+static uint32 dmb_csc_matrix_tab[9] = {
+	0x0254, 0x0000, 0x0331,
+	0x0254, 0xff37, 0xfe60,
+	0x0254, 0x0409, 0x0000
+};
+
+static uint32 dmb_csc_pre_bv_tab[3] = {0xfff0, 0xff80, 0xff80 };
+
+void mdp4_vg_dmb_csc_mv_setup(int vp_num)
+{
+	uint32 *off;
+	int i, voff;
+
+	voff = MDP4_VIDEO_OFF * vp_num;
+	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
+					MDP4_CSC_MV_OFF);
+
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	for (i = 0; i < 9; i++) {
+		outpdw(off, dmb_csc_matrix_tab[i]);
+		off++;
+		printk("mdp4_vg_dmb_csc_mv_setup 0x%x\n", dmb_csc_matrix_tab[i]);
+	}
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+}
+
+void mdp4_vg_csc_dmb_pre_bv_setup(int vp_num)
+{
+	uint32 *off;
+	int i, voff;
+
+	voff = MDP4_VIDEO_OFF * vp_num;
+	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
+					MDP4_CSC_PRE_BV_OFF);
+
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	for (i = 0; i < 3; i++) {
+		outpdw(off, dmb_csc_pre_bv_tab[i]);
+		off++;
+		printk("mdp4_vg_csc_dmb_pre_bv_setup 0x%x\n", dmb_csc_pre_bv_tab[i]);
+	}
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+}
+
+void mdp4_vg_csc_default_setup(void)
+{
+	/* yuv2rgb */
+	mdp4_vg_csc_mv_setup(0);
+	mdp4_vg_csc_mv_setup(1);
+	mdp4_vg_csc_pre_bv_setup(0);
+	mdp4_vg_csc_pre_bv_setup(1);
+	//mdp4_vg_csc_post_bv_setup(0);
+	//mdp4_vg_csc_post_bv_setup(1);
+	//mdp4_vg_csc_pre_lv_setup(0);
+	//mdp4_vg_csc_pre_lv_setup(1);
+	//mdp4_vg_csc_post_lv_setup(0);
+	//mdp4_vg_csc_post_lv_setup(1);
+
+	printk("mdp4_vg_csc_default_setup DMB Exit\n");
+}
+EXPORT_SYMBOL(mdp4_vg_csc_default_setup);
+
+
+void mdp4_vg_csc_dmb_setup(struct mdp_ccs *p)
+{
+	int i;
+
+	for (i = 0; i < 9; i++) {
+		dmb_csc_matrix_tab[i] = p->ccs[i];
+	}
+
+	for (i = 0; i < 3; i++) {
+		dmb_csc_pre_bv_tab[i] = 0xFF00 | (p->bv[i]);
+	}
+	
+	/* yuv2rgb */
+	mdp4_vg_dmb_csc_mv_setup(0);
+	mdp4_vg_dmb_csc_mv_setup(1);
+
+	mdp4_vg_csc_dmb_pre_bv_setup(0);
+	mdp4_vg_csc_dmb_pre_bv_setup(1);
+	
+	//mdp4_vg_csc_post_bv_setup(0);
+	//mdp4_vg_csc_post_bv_setup(1);
+	//mdp4_vg_csc_pre_lv_setup(0);
+	//mdp4_vg_csc_pre_lv_setup(1);
+	//mdp4_vg_csc_post_lv_setup(0);
+	//mdp4_vg_csc_post_lv_setup(1);
+
+	printk("mdp4_vg_csc_dmb_setup DMB Enter\n");
+}
+EXPORT_SYMBOL(mdp4_vg_csc_dmb_setup);
+
+#endif
+
 
 static uint32 csc_rgb2yuv_matrix_tab[9] = {
 	0x0083, 0x0102, 0x0032,

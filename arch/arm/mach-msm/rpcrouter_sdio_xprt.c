@@ -342,6 +342,8 @@ static int rpcrouter_sdio_remote_write(void *data, uint32_t len,
 	}
 }
 
+
+
 static void sdio_xprt_write_data(struct work_struct *work)
 {
 	int rc = 0, sdio_write_retry = 0;
@@ -397,6 +399,7 @@ static void sdio_xprt_write_data(struct work_struct *work)
 	spin_unlock_irqrestore(&sdio_remote_xprt.channel->write_list_lock,
 				flags);
 	mutex_unlock(&modem_reset_lock);
+
 }
 
 static int rpcrouter_sdio_remote_close(void)
@@ -413,6 +416,7 @@ static void sdio_xprt_read_data(struct work_struct *work)
 	int size = 0, read_avail;
 	unsigned long flags;
 	struct sdio_buf_struct *buf;
+
 	SDIO_XPRT_DBG("sdio_xprt Called %s\n", __func__);
 
 	mutex_lock(&modem_reset_lock);
@@ -475,6 +479,7 @@ static void sdio_xprt_read_data(struct work_struct *work)
 		msm_rpcrouter_xprt_notify(&sdio_remote_xprt.xprt,
 				  RPCROUTER_XPRT_EVENT_DATA);
 	mutex_unlock(&modem_reset_lock);
+
 }
 
 static void rpcrouter_sdio_remote_notify(void *_dev, unsigned event)

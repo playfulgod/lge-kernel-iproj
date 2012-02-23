@@ -65,6 +65,24 @@ static int charm_boot_status;
 static int charm_ram_dump_status;
 static struct workqueue_struct *charm_queue;
 
+
+//wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH
+/*
+enum {
+	ULS_NO_SUBSYSTEM,			// no subsystem crash was occurred.
+	ULS_SUBSYSTEM_MDM,		// mdm  subsystem crash was occurred.
+	ULS_SUBSYSTEM_LPASS,		// lpass or 8k modem subsystem crash was occured.
+};
+*/
+int uls_mdm_crash_fatal_flag = false;	// set to true from MDM2AP_ERRFATAL(1)
+int uls_mdm_status_low_flag = false;	// set to true from MDM2AP_STATUS(0)
+//int uls_the_kind_of_subsys = ULS_NO_SUBSYSTEM;	// set to true if subsystem restart 
+#endif
+//wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display
+
+
+
 #define CHARM_DBG(...)	do { if (charm_debug_on) \
 					pr_info(__VA_ARGS__); \
 			} while (0);
@@ -74,16 +92,40 @@ DECLARE_COMPLETION(charm_needs_reload);
 DECLARE_COMPLETION(charm_boot);
 DECLARE_COMPLETION(charm_ram_dumps);
 
+
+
+
+/*
+*
+* Func: print_mdm_gpio_values()
+*
+* Desc: 
+* 	This function is a function to identify gpio values in error fatal scenarios. 
+*	The gpio values are useful for debugging malfunctions of the error fatal scenarios.
+*	(E.g. kernel panic, MDM WDT, MDM error fatal, etc.)
+*	This feature will be removed before released.
+*	If you have any questions or comments, contact me.
+*	E-Mail: seungyeol.seo@lge.com
+*
+*/
+
+
+
+
+
 static void charm_disable_irqs(void)
 {
+
 	disable_irq_nosync(charm_errfatal_irq);
 	disable_irq_nosync(charm_status_irq);
 
 }
 
 
+
 static int charm_subsys_shutdown(const char * const crashed_subsys)
 {
+
 	charm_ready = 0;
 	power_down_charm();
 	return 0;
@@ -91,6 +133,7 @@ static int charm_subsys_shutdown(const char * const crashed_subsys)
 
 static int charm_subsys_powerup(const char * const crashed_subsys)
 {
+
 	power_on_charm();
 	boot_type = CHARM_NORMAL_BOOT;
 	complete(&charm_needs_reload);
@@ -103,6 +146,7 @@ static int charm_subsys_powerup(const char * const crashed_subsys)
 static int charm_subsys_ramdumps(int want_dumps,
 					const char * const crashed_subsys)
 {
+
 	charm_ram_dump_status = 0;
 	if (want_dumps) {
 		boot_type = CHARM_RAM_DUMPS;
@@ -130,6 +174,10 @@ static int charm_panic_prep(struct notifier_block *this,
 			 __func__);
 	charm_disable_irqs();
 	gpio_set_value(AP2MDM_ERRFATAL, 1);
+
+
+
+	
 	gpio_set_value(AP2MDM_WAKEUP, 1);
 	for (i = CHARM_MODEM_TIMEOUT; i > 0; i -= CHARM_MODEM_DELTA) {
 		pet_watchdog();
@@ -162,30 +210,43 @@ static long charm_modem_ioctl(struct file *filp, unsigned int cmd,
 	CHARM_DBG("%s: Entering ioctl cmd = %d\n", __func__, _IOC_NR(cmd));
 	switch (cmd) {
 	case WAKE_CHARM:
+		printk("[MDM]charm_modem_ioctl: WAKE_CHARM\n");
 		CHARM_DBG("%s: Powering on\n", __func__);
 		power_on_charm();
 		break;
 	case CHECK_FOR_BOOT:
+		printk("[MDM]charm_modem_ioctl: CHECK_FOR_BOOT\n");
 		if (gpio_get_value(MDM2AP_STATUS) == 0)
 			put_user(1, (unsigned long __user *) arg);
 		else
 			put_user(0, (unsigned long __user *) arg);
 		break;
 	case NORMAL_BOOT_DONE:
+		printk("[MDM]charm_modem_ioctl: NORMAL_BOOT_DONE\n");
 		CHARM_DBG("%s: check if charm is booted up\n", __func__);
 		get_user(status, (unsigned long __user *) arg);
-		if (status)
+		printk("[MDM]charm_modem_ioctl: booting status = %d\n", status);
+		if (status){
 			charm_boot_status = -EIO;
+			ret = -EINVAL;
+			printk("[MDM]failed in charm_modem_ioctl: NORMAL_BOOT_DONE, retry\n");
+		}
 		else
 			charm_boot_status = 0;
 		charm_ready = 1;
 
+		/* kwangdo.yi@lge.com [jointlab] Wed 24 Aug 2011 S
+		   set gpio 132 down for rock bottom current 
+*/
+		gpio_set_value(AP2MDM_KPDPWR_N, 0);
+		/* kwangdo.yi@lge.com [jointlab] Wed 24 Aug 2011 E */
 		if (!first_boot)
 			complete(&charm_boot);
 		else
 			first_boot = 0;
 		break;
 	case RAM_DUMP_DONE:
+		printk("[MDM]charm_modem_ioctl: RAM_DUMP_DONE\n");
 		CHARM_DBG("%s: charm done collecting RAM dumps\n", __func__);
 		get_user(status, (unsigned long __user *) arg);
 		if (status)
@@ -195,12 +256,14 @@ static long charm_modem_ioctl(struct file *filp, unsigned int cmd,
 		complete(&charm_ram_dumps);
 		break;
 	case WAIT_FOR_RESTART:
+		printk("[MDM]charm_modem_ioctl: WAIT_FOR_RESTART: wait for charm to need images reloaded\n");
 		CHARM_DBG("%s: wait for charm to need images reloaded\n",
 				__func__);
 		ret = wait_for_completion_interruptible(&charm_needs_reload);
 		if (!ret)
 			put_user(boot_type, (unsigned long __user *) arg);
 		INIT_COMPLETION(charm_needs_reload);
+		printk("[MDM]charm_modem_ioctl: WAIT_FOR_RESTART: completed\n");
 		break;
 	default:
 		pr_err("%s: invalid ioctl cmd = %d\n", __func__, _IOC_NR(cmd));
@@ -230,28 +293,55 @@ struct miscdevice charm_modem_misc = {
 };
 
 
+int g_mdm_status_change_counter = 0;
+
 
 static void charm_status_fn(struct work_struct *work)
 {
-	pr_info("Reseting the charm because status changed\n");
-	subsystem_restart("external_modem");
+    if (gpio_get_value(MDM2AP_STATUS) == 1) {
+		g_mdm_status_change_counter++;
+		if(g_mdm_status_change_counter > 0xffffffff ) g_mdm_status_change_counter = 0;
+		printk("%s: MDM status pin fluctuated \n", __func__);
+	}
+    else
+    {
+	    pr_info("Reseting the charm because status changed\n");
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH	
+	uls_mdm_status_low_flag = true; //wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display
+//	uls_the_kind_of_subsys = ULS_SUBSYSTEM_MDM;
+#endif
+	    subsystem_restart("external_modem");
+    }
 }
 
-static DECLARE_WORK(charm_status_work, charm_status_fn);
+//static DECLARE_WORK(charm_status_work, charm_status_fn);
+static DECLARE_DELAYED_WORK(charm_status_work, charm_status_fn);
 
 static void charm_fatal_fn(struct work_struct *work)
 {
 	pr_info("Reseting the charm due to an errfatal\n");
+//jaewon.choi@lge.com, 2011-8-24, [MDM BSP] prevent MDM power-down when MDM crashed
+/*
 	if (get_restart_level() == RESET_SOC)
 		pm8058_stay_on();
+*/
+	// seondon.lee@lge.com, 2011-8-26, [MDM BSP] prevent MDM power-down when MDM crashed	
+
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH	
+	uls_mdm_crash_fatal_flag = true; //wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display
+//	uls_the_kind_of_subsys = ULS_SUBSYSTEM_MDM;
+#endif
 	subsystem_restart("external_modem");
 }
 
 static DECLARE_WORK(charm_fatal_work, charm_fatal_fn);
 
+
 static irqreturn_t charm_errfatal(int irq, void *dev_id)
 {
 	CHARM_DBG("%s: charm got errfatal interrupt\n", __func__);
+	
+	
 	if (charm_ready && (gpio_get_value(MDM2AP_STATUS) == 1)) {
 		CHARM_DBG("%s: scheduling work now\n", __func__);
 		queue_work(charm_queue, &charm_fatal_work);
@@ -263,11 +353,17 @@ static irqreturn_t charm_status_change(int irq, void *dev_id)
 {
 	CHARM_DBG("%s: charm sent status change interrupt\n", __func__);
 	if ((gpio_get_value(MDM2AP_STATUS) == 0) && charm_ready) {
+		
 		CHARM_DBG("%s: scheduling work now\n", __func__);
-		queue_work(charm_queue, &charm_status_work);
+//		queue_work(charm_queue, &charm_status_work);
+		queue_delayed_work(charm_queue, &charm_status_work, msecs_to_jiffies(10));
 	} else if (gpio_get_value(MDM2AP_STATUS) == 1) {
+	
 		CHARM_DBG("%s: charm is now ready\n", __func__);
 	}
+
+
+	
 	return IRQ_HANDLED;
 }
 
@@ -376,6 +472,7 @@ static int __init charm_modem_probe(struct platform_device *pdev)
 	}
 	charm_errfatal_irq = irq;
 
+
 errfatal_err:
 
 	irq = platform_get_irq(pdev, 1);
@@ -441,13 +538,13 @@ static void charm_modem_shutdown(struct platform_device *pdev)
 	gpio_set_value(AP2MDM_STATUS, 0);
 	gpio_set_value(AP2MDM_WAKEUP, 1);
 
+
 	for (i = CHARM_MODEM_TIMEOUT; i > 0; i -= CHARM_MODEM_DELTA) {
 		pet_watchdog();
 		msleep(CHARM_MODEM_DELTA);
 		if (gpio_get_value(MDM2AP_STATUS) == 0)
 			break;
 	}
-
 	if (i <= 0) {
 		pr_err("%s: MDM2AP_STATUS never went low.\n",
 			 __func__);
@@ -457,8 +554,14 @@ static void charm_modem_shutdown(struct platform_device *pdev)
 			msleep(CHARM_MODEM_DELTA);
 		}
 		gpio_direction_output(AP2MDM_PMIC_RESET_N, 0);
+
+
 	}
+
 	gpio_set_value(AP2MDM_WAKEUP, 0);
+
+
+
 }
 
 static struct platform_driver charm_modem_driver = {

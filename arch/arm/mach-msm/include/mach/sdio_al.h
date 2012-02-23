@@ -36,6 +36,12 @@
 
 #include <linux/mmc/card.h>
 
+#ifndef SDIO_MONITORING
+//#define SDIO_MONITORING
+#endif /* SDIO_MONITORING */
+#ifdef SDIO_MONITORING
+#include "../../sdio_monitoring_module.h"
+#endif /* SDIO_MONITORING */
 struct sdio_channel; /* Forward Declaration */
 
 /**

@@ -559,8 +559,30 @@ struct msm_snapshot_pp_status {
 #define CFG_SENSOR_INIT    29
 #define CFG_GET_3D_CALI_DATA 30
 #define CFG_GET_CALIB_DATA		31
-#define CFG_MAX			32
+// LGE_BSP_CAMERA 20110324
+#define CFG_SET_ISO			32
+#define CFG_MAX 			33
 
+//LGE_CAMERA_S : AE_metering - jonghwan.ko@lge.com
+#define SENSOR_AE_METERING 35
+enum AE_metering{
+AE_METERING_DEFAULT,
+AE_METERING_CENTER,
+AE_METERING_MAX
+};
+//LGE_CAMERA_E : AE_metering - jonghwan.ko@lge.com
+// LGE_CAMERA_S : Adjust VT Cam frame rate - jonghwan.ko@lge.com
+#define CFG_FIXED_FPS	34
+
+#define SENSOR_AUTO_FPS_1030	0 //CAMERA_BESTSHOT_OFF
+#define SENSOR_FIXED_FPS_15	1
+#define SENSOR_FIXED_FPS_30	2
+#define SENSOR_FIXED_FPS_10	3
+#define SENSOR_FIXED_FPS_08	4
+#define SENSOR_AUTO_FPS_0730	5 //CAMERA_BESTSHOT_NIGHT
+#define SENSOR_FIXED_FPS_07	6
+
+// LGE_CAMERA_E : Adjust VT Cam frame rate - jonghwan.ko@lge.com
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -574,8 +596,11 @@ struct msm_snapshot_pp_status {
 
 #define SENSOR_QTR_SIZE			0
 #define SENSOR_FULL_SIZE		1
-#define SENSOR_QVGA_SIZE		2
-#define SENSOR_INVALID_SIZE		3
+// Start LGE_BSP_CAMERA::john.park@lge.com 2011-04-27  For 1080p
+#define SENSOR_1080_SIZE		2
+#define SENSOR_QVGA_SIZE		3
+#define SENSOR_INVALID_SIZE		4
+// End LGE_BSP_CAMERA::john.park@lge.com 2011-04-27  For 1080p
 
 #define CAMERA_EFFECT_OFF		0
 #define CAMERA_EFFECT_MONO		1

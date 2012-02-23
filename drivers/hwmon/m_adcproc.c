@@ -19,8 +19,29 @@
 
 #include <linux/msm_adc.h>
 
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+#include "../../lge/include/lg_power_common.h"
+#endif
+
 #define KELVINMIL_DEGMIL	273160
 
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+const struct adc_map_pt adcmap_batttherm[THERM_LAST] = {
+#if 1 // from AT&T 2011-05-31
+	{1500,   -8},
+	{1430,   -3},
+#else
+	{1574,  -10},
+	{1477,   -5},
+#endif
+	{946,	 42},
+	{933,	 45},
+	{901,	 55},
+	{896,	 57},
+	{889,	 60},
+	{878,	 65},
+};
+#else
 static const struct adc_map_pt adcmap_batttherm[] = {
 	{2020,	-30},
 	{1923,	-20},
@@ -36,6 +57,7 @@ static const struct adc_map_pt adcmap_batttherm[] = {
 	{453,	 70},
 	{364,	 80}
 };
+#endif
 
 static const struct adc_map_pt adcmap_msmtherm[] = {
 	{2150,	-30},

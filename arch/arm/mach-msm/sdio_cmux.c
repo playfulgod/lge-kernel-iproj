@@ -607,6 +607,7 @@ static void parse_cmux_data(void *data, int size)
 	kfree(data);
 }
 
+
 static void sdio_cdemux_fn(struct work_struct *work)
 {
 	int r = 0, read_avail = 0;
@@ -633,6 +634,7 @@ static void sdio_cdemux_fn(struct work_struct *work)
 		}
 
 		D("%s: sdio_read %d bytes\n", __func__, read_avail);
+
 		r = sdio_read(sdio_qmi_chl, cmux_data, read_avail);
 		if (r < 0) {
 			pr_err("%s: sdio_read failed with rc %d\n",
@@ -642,6 +644,7 @@ static void sdio_cdemux_fn(struct work_struct *work)
 		}
 
 		parse_cmux_data(cmux_data, read_avail);
+
 	}
 	return;
 }
@@ -654,6 +657,7 @@ static void sdio_cmux_fn(struct work_struct *work)
 	int bytes_written;
 	struct sdio_cmux_list_elem *list_elem = NULL;
 	struct sdio_cmux_ch *ch;
+
 
 	for (i = 0; i < SDIO_CMUX_NUM_CHANNELS; ++i) {
 		ch = &logical_ch[i];
@@ -708,6 +712,7 @@ static void sdio_cmux_fn(struct work_struct *work)
 			ch->write_done(NULL, bytes_written, ch->priv);
 		mutex_unlock(&ch->tx_lock);
 	}
+
 	return;
 }
 

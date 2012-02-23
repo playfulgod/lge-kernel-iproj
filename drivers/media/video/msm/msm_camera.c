@@ -2608,7 +2608,7 @@ static int msm_pp_release(struct msm_sync *sync, void __user *arg)
 	unsigned long flags;
 
 	if (!sync->pp_mask) {
-		pr_warning("%s: pp not in progress for\n", __func__);
+		//pr_warning("%s: pp not in progress for\n", __func__);
 		return -EINVAL;
 	}
 	if (sync->pp_mask & PP_PREV) {
@@ -2822,8 +2822,12 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 			ERR_COPY_FROM_USER();
 			rc = -EFAULT;
 		} else
+		#ifdef CONFIG_LGE_FLASH_LM3559 //jisun.shin@lge.com
+			rc = lge_flash_ctrl(pmsm->sync->sdata, &flash_info);
+		#else
 			rc = msm_flash_ctrl(pmsm->sync->sdata, &flash_info);
-
+		#endif
+		
 		break;
 	}
 

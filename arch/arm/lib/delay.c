@@ -85,6 +85,7 @@ EXPORT_SYMBOL(__const_udelay);
  */
 void __udelay(unsigned long usecs)
 {
-	__const_udelay(usecs * ((2199023*HZ)>>11));
+// add (long long) for High resolution HZ .. lge
+	__const_udelay(usecs * (((long long)2199023*HZ)>>11));
 }
 EXPORT_SYMBOL(__udelay);

@@ -1132,9 +1132,11 @@ static irqreturn_t msm_spi_error_irq(int irq, void *dev_id)
 		 * a bogus input overrun error on 8660. We ignore such errors
 		 * when the transfer has completed successfully.
 		 */
+#if 0		//LGE_BROADCAST_I
 		if (dd->mode != SPI_MODE_NONE)
 			dev_warn(master->dev.parent,
 				 "SPI input overrun error\n");
+#endif	//LGE_BROADCAST_I
 	}
 	msm_spi_get_clk_err(dd, &spi_err);
 	if (spi_err & SPI_ERR_CLK_OVER_RUN_ERR)

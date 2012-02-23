@@ -526,23 +526,28 @@ static uint32_t audio_mvs_get_media_type(uint32_t mvs_mode, uint32_t rate_type)
 	return media_type;
 }
 
+//~~ [START] 2011.06.09 hj74.kim mvs loop back qualqumm patch
 static uint32_t audio_mvs_get_network_type(uint32_t mvs_mode)
 {
 	uint32_t network_type;
 
 	switch (mvs_mode) {
 	case MVS_MODE_IS127:
-	case MVS_MODE_AMR:
-	case MVS_MODE_LINEAR_PCM:
-	case MVS_MODE_PCM:
-	case MVS_MODE_G729A:
-	case MVS_MODE_G711A:
-		network_type = VSS_NETWORK_ID_VOIP_NB;
+		network_type = VSS_NETWORK_ID_CDMA_NB;
 		break;
 
-	case MVS_MODE_AMR_WB:
-		network_type = VSS_NETWORK_ID_VOIP_WB;
+	case MVS_MODE_LINEAR_PCM:
+	case MVS_MODE_PCM:
+		network_type = VSS_NETWORK_ID_GSM_NB;
 		break;
+ 
+	case MVS_MODE_AMR:
+	case MVS_MODE_AMR_WB:
+		network_type = VSS_NETWORK_ID_GSM_NB;
+		break;
+ 
+	case MVS_MODE_G729A:
+	case MVS_MODE_G711A:
 
 	default:
 		network_type = VSS_NETWORK_ID_DEFAULT;
@@ -552,6 +557,7 @@ static uint32_t audio_mvs_get_network_type(uint32_t mvs_mode)
 
 	return network_type;
 }
+//~~ [END] hj74.kim mvs loop back qualqumm patch
 
 static int audio_mvs_start(struct audio_mvs_info_type *audio)
 {
@@ -590,7 +596,7 @@ static int audio_mvs_stop(struct audio_mvs_info_type *audio)
 
 	pr_info("%s\n", __func__);
 
-	voice_set_voc_path_full(0);
+	rc = voice_set_voc_path_full(0);
 
 	audio->state = AUDIO_MVS_STOPPED;
 

@@ -75,10 +75,15 @@ do {									\
 #define CHK_OVERFLOW(bufStart, start, end, length) \
 ((bufStart <= start) && (end - start >= length)) ? 1 : 0
 
+/* LGE_CHANGE_S [woongchang.kim@lge.com] 2010-11-22 - fix diag packet drop issue */
+#define LGE_FIX_DIAG_PKT_DROP
+/* LGE_CHANGE_E [woongchang.kim@lge.com] 2010-11-22 */
+
 int chk_config_get_id()
 {
 	/* For all Fusion targets, Modem will always be present */
-	if (machine_is_msm8x60_charm_surf() || machine_is_msm8x60_charm_ffa())
+	if (machine_is_msm8x60_charm_surf() || machine_is_msm8x60_charm_ffa() ||
+		machine_is_lge_i_board())
 		return 0;
 
 	switch (socinfo_get_id()) {
@@ -209,7 +214,7 @@ int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr)
 		}
 #ifdef CONFIG_DIAG_SDIO_PIPE
 		else if (proc_num == SDIO_DATA) {
-			if (machine_is_msm8x60_charm_surf() ||
+			if (machine_is_lge_i_board() ||
 					machine_is_msm8x60_charm_ffa()) {
 				write_ptr->buf = buf;
 				err = usb_diag_write(driver->mdm_ch, write_ptr);
@@ -405,6 +410,34 @@ static void diag_update_log_mask(int equip_id, uint8_t *buf, int num_items)
 	mutex_unlock(&driver->diagchar_mutex);
 }
 
+#ifdef LGE_FIX_DIAG_PKT_DROP
+static void diag_update_pkt_buffer(unsigned char *buf, int len)
+{
+	mutex_lock(&driver->diagchar_mutex);
+
+	if ((driver->pkt_length + len) > PKT_SIZE)
+	{
+		printk(KERN_CRIT " Not enough buffer space for PKT_RESP\n");
+		printk(KERN_CRIT " Already %d bytes remains whereas %d bytes to be added\n", driver->pkt_length, len);
+	}
+	else
+	{
+		if (driver->pkt_length == 0)
+		{
+			memcpy(driver->pkt_buf, buf, len);
+			driver->pkt_length = len;
+		}
+		else
+		{
+			printk(KERN_ALERT " Add %d bytes to diag pkt buffer while %d bytes in buffer\n", len, driver->pkt_length);
+			memcpy(driver->pkt_buf + driver->pkt_length, buf, len);
+			driver->pkt_length += len;
+		}
+	}
+
+	mutex_unlock(&driver->diagchar_mutex);
+}
+#else //original code
 static void diag_update_pkt_buffer(unsigned char *buf)
 {
 	unsigned char *ptr = driver->pkt_buf;
@@ -417,6 +450,7 @@ static void diag_update_pkt_buffer(unsigned char *buf)
 		printk(KERN_CRIT " Not enough buffer space for PKT_RESP\n");
 	mutex_unlock(&driver->diagchar_mutex);
 }
+#endif
 
 void diag_update_userspace_clients(unsigned int type)
 {
@@ -767,8 +801,12 @@ static int diag_process_apps_pkt(unsigned char *buf, int len)
 				 subsys_cmd_code &&
 				  driver->table[i].cmd_code_hi >=
 				 subsys_cmd_code){
+#ifdef LGE_FIX_DIAG_PKT_DROP
+					diag_update_pkt_buffer(buf, len);
+#else //original code
 				driver->pkt_length = len;
 				diag_update_pkt_buffer(buf);
+#endif
 				diag_update_sleeping_process(
 					driver->table[i].process_id);
 					return 0;
@@ -781,8 +819,12 @@ static int diag_process_apps_pkt(unsigned char *buf, int len)
 					subsys_cmd_code &&
 					 driver->table[i].cmd_code_hi >=
 					subsys_cmd_code){
+#ifdef LGE_FIX_DIAG_PKT_DROP
+						diag_update_pkt_buffer(buf, len);
+#else //original code
 					driver->pkt_length = len;
 					diag_update_pkt_buffer(buf);
+#endif					
 					diag_update_sleeping_process(
 						driver->table[i].
 						process_id);
@@ -795,8 +837,12 @@ static int diag_process_apps_pkt(unsigned char *buf, int len)
 						 cmd_code &&
 						 driver->table[i].
 						cmd_code_hi >= cmd_code){
+#ifdef LGE_FIX_DIAG_PKT_DROP
+						diag_update_pkt_buffer(buf, len);
+#else //original code
 					driver->pkt_length = len;
 					diag_update_pkt_buffer(buf);
+#endif							
 					diag_update_sleeping_process
 						(driver->table[i].
 						 process_id);
@@ -900,7 +946,7 @@ int diagfwd_connect(void)
 	/* Poll USB channel to check for data*/
 	queue_work(driver->diag_wq, &(driver->diag_read_work));
 #ifdef CONFIG_DIAG_SDIO_PIPE
-	if (machine_is_msm8x60_charm_surf() || machine_is_msm8x60_charm_ffa()) {
+	if (machine_is_lge_i_board() || machine_is_msm8x60_charm_ffa()) {
 		if (driver->mdm_ch && !IS_ERR(driver->mdm_ch))
 			diagfwd_connect_sdio();
 		else
@@ -921,7 +967,7 @@ int diagfwd_disconnect(void)
 	driver->debug_flag = 1;
 	usb_diag_free_req(driver->legacy_ch);
 #ifdef CONFIG_DIAG_SDIO_PIPE
-	if (machine_is_msm8x60_charm_surf() || machine_is_msm8x60_charm_ffa())
+	if (machine_is_lge_i_board() || machine_is_msm8x60_charm_ffa())
 		if (driver->mdm_ch && !IS_ERR(driver->mdm_ch))
 			diagfwd_disconnect_sdio();
 #endif
@@ -953,7 +999,7 @@ int diagfwd_write_complete(struct diag_request *diag_write_ptr)
 	}
 #ifdef CONFIG_DIAG_SDIO_PIPE
 	else if (buf == (void *)driver->buf_in_sdio)
-		if (machine_is_msm8x60_charm_surf() ||
+		if (machine_is_lge_i_board() ||
 					 machine_is_msm8x60_charm_ffa())
 			diagfwd_write_complete_sdio();
 		else
@@ -995,7 +1041,7 @@ int diagfwd_read_complete(struct diag_request *diag_read_ptr)
 	}
 #ifdef CONFIG_DIAG_SDIO_PIPE
 	else if (buf == (void *)driver->usb_buf_mdm_out) {
-		if (machine_is_msm8x60_charm_surf() ||
+		if (machine_is_lge_i_board() ||
 					 machine_is_msm8x60_charm_ffa()) {
 			driver->read_len_mdm = diag_read_ptr->actual;
 			diagfwd_read_complete_sdio();
@@ -1209,7 +1255,7 @@ void diagfwd_init(void)
 		goto err;
 	}
 #ifdef CONFIG_DIAG_SDIO_PIPE
-	if (machine_is_msm8x60_charm_surf() || machine_is_msm8x60_charm_ffa())
+	if (machine_is_lge_i_board() || machine_is_msm8x60_charm_ffa())
 		diagfwd_sdio_init();
 #endif
 #endif

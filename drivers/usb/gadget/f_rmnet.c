@@ -847,6 +847,16 @@ static void rmnet_connect_work(struct work_struct *w)
 	struct usb_composite_dev *cdev = dev->cdev;
 	int ret = 0;
 
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
+	/* BEGIN:0010634 [yk.kim@lge.com] 2010-11-08 */
+	/* ADD:0010634 prevent smd open fail */
+	smd_close(dev->smd_ctl.ch);
+	dev->smd_ctl.flags = 0;
+
+	smd_close(dev->smd_data.ch);
+	dev->smd_data.flags = 0;
+	/* END: [yk.kim@lge.com] 2010-11-08 */
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
 	/* Control channel for QMI messages */
 	ret = smd_open(rmnet_ctl_ch, &dev->smd_ctl.ch,
 			&dev->smd_ctl, rmnet_smd_notify);
@@ -1158,6 +1168,10 @@ static struct android_usb_function rmnet_function = {
 
 static int __init init(void)
 {
+//seunghun.kim
+	printk(KERN_INFO "seunghun.kim : f_rmnet init\n");
+//seunghun.kim
+
 	android_register_function(&rmnet_function);
 	return 0;
 }

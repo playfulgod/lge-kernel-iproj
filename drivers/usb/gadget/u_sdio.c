@@ -31,6 +31,14 @@
 #include <mach/sdio_cmux.h>
 #include "u_serial.h"
 
+#if 1 // eunmo.yang 2011.05.19 for PTN TEST
+/* [START] hansun.lee@lge.com 2011.04.14 */
+/* [ADD] add ATCMD filter function declaration */
+ssize_t atcmd_queue(const char *buf, size_t count);
+ssize_t atcmd_sdio_write(const char *buf, size_t count);
+/* [END] hansun.lee@lge.com 2011.04.14 */
+#endif
+
 #define RX_QUEUE_SIZE		8
 #define RX_BUF_SIZE		2048
 
@@ -339,6 +347,32 @@ void gsdio_rx_push(struct work_struct *w)
 			/* FALL THROUGH */
 		case 0:
 			/* normal completion */
+
+#if 1			// eunmo.yang 2011.05.19 for PTN TEST
+            /* [START] hansun.lee@lge.com 2011.04.14 */
+            /* [ADD] add ATCMD filter procedure */
+            if (port->port_num == 0) /* modem */
+            {
+                char *packet = req->buf;
+                unsigned size = req->actual;
+                unsigned n = port->n_read;;
+
+                //pr_info("%s: actual[%d], n_read[%d], length[%d]\n", __func__, req->actual, port->n_read, req->length);
+
+                if (n)
+                {
+                    packet += n;
+                    size -= n;
+                }
+
+                if (atcmd_queue(packet, size) != 0)
+                {
+                    list_move(&req->list, &port->read_pool);
+                    goto rx_push_end;
+                }
+            }
+            /* [END] hansun.lee@lge.com 2011.04.14 */
+#endif
 			break;
 		}
 
@@ -534,6 +568,22 @@ void gsdio_tx_pull(struct work_struct *w)
 			}
 			goto tx_pull_end;
 		}
+#if 1			// eunmo.yang 2011.05.19 for PTN TEST
+        /* [START] hansun.lee@lge.com 2011.04.14 */
+        /* [ADD] add printg for tx_pull data */
+        if (0) {
+            char buf[256];
+
+            memcpy(buf, req->buf, avail);
+            buf[avail] = '\0';
+            if (buf[avail-1] == '\r' || buf[avail-1] == '\n')
+            {
+                buf[avail-1] = '\0';
+            }
+            pr_info("%s: [%d][\n%s\n]\n", __func__, avail, buf);
+        }
+        /* [END] hansun.lee@lge.com 2011.04.14 */
+#endif
 
 		req->length = avail;
 
@@ -1166,3 +1216,498 @@ free_ports:
 }
 
 /* TODO: Add gserial_cleanup */
+
+#if 1			// eunmo.yang 2011.05.19 for PTN TEST
+/* [START] hansun.lee@lge.com 2011.04.14 */
+/* [ADD] add ATCMD filter driver */
+/*******************************************************************************
+ * AT Command Handler
+ ******************************************************************************/
+
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/fs.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <linux/fcntl.h>
+#include <linux/device.h>
+
+#include <asm/uaccess.h>
+#include <asm/io.h>
+
+#define list_last_entry(ptr, type, member) \
+    list_entry((ptr)->prev, type, member)
+
+static int atcmd_major;
+static DECLARE_WAIT_QUEUE_HEAD(atcmd_read_wait);
+static int atcmd_modem = 0;
+
+static struct list_head atcmd_pool;
+struct atcmd_request {
+    char buf[2048];
+    unsigned length;
+    unsigned status;
+
+    struct list_head list;
+};
+
+static struct class *atcmd_class;
+static struct device *atcmd_dev;
+
+struct device *get_atcmd_dev(void)
+{
+    return atcmd_dev;
+}
+EXPORT_SYMBOL(get_atcmd_dev);
+
+static char atcmd_name[2048];
+static char atcmd_state[2048];
+
+struct atcmd_request *atcmd_alloc_req(void)
+{
+    struct atcmd_request *req;
+
+    req = kmalloc(sizeof(struct atcmd_request), GFP_ATOMIC);
+    if (req == NULL)
+        return NULL;
+
+    req->length = 0;
+    req->status = 0;
+
+    return req;
+}
+
+void atcmd_free_req(struct atcmd_request *req)
+{
+    kfree(req);
+}
+
+#define ATCMD_TO_AP 0
+#define ATCMD_TO_CP 1
+
+static const char *atcmd_ap[] = {
+
+    "+MTC", "%ACS", "%BTTM", "%READY", "%AVR", "%BATL", "%BOFF", "%CAM", "%CHARGE", "%CHCOMP",
+    "%DBCOPY", "%DBCRC", "%DBCHK", "%DBDUMP", "%DRMCERT", "%DRMERASE",
+    "%DRMINDEX", "%DRMTYPE", "%ECALL", "%EMT", "%FBOOT", "%FILECRC", "%FKPD", "%FLIGHT",
+    "%FMR", "%FPRICRC", "%FRST", "%FRSTSTATUS", "%FUELRST", "%FUELVAL", "%GKPD",
+    "%LANG", "%LCD", "%LEDON", "%MAC", "%MACCK", "%MMCDDATADEL", "%MMCDEFULTSIZE",
+    "%MMCFORMAT", "%MMCTOTALSIZE", "%MMCUSEDSIZE", "%MOT", "%MPT", "%PMRST", "%OSVER",
+	"%PROXIMITY", "%ALC", "%ACCEL", "%COMPASS", "%GYRO",
+    "%RESTART", "%SPM", "%SURV", "%SWVCHECK", "%VLC", "%USBSW", "%WLAN", "%WLANR", "%WLANT", "%NCM", 
+#ifdef CONFIG_LGE_FELICA
+    "%IMA", "%IDM", "%EXTIDM", "%FELICATX", "%SWITCH", "%FREQCAL", "%RFIDCK", "%RFREGCAL", "%SWTABLE", "%CFREQ",
+#endif
+//add for LGE Broadcast 1Seg AT CMD   20110711-taew00k.kang [start]
+	"%MTV", 
+//add for LGE Broadcast 1Seg AT CMD   20110711-taew00k.kang [END]
+//20110708, seunghyup.ryoo@lge.com,  [START]
+#if defined(CONFIG_LGE_NFC_NXP_PN544PN65N)
+	"%NFC",
+#endif
+//20110708, seunghyup.ryoo@lge.com,  [END]
+
+//[START][DLOAD] jongan.kim - 2011.09.08
+  "%LGANDROID", "%LGATSERVICE",
+//[END][DLOAD] jongan.kim - 2011.09.08
+
+    NULL
+};
+
+int atcmd_to(const char *buf, size_t count)
+{
+    int i, len;
+    char *p;
+
+//    pr_info("%s\n", __func__);
+
+    strncpy(atcmd_name, buf, count);
+    if ((p = strchr(atcmd_name, '=')) || (p = strchr(atcmd_name, '?')))
+    {
+        *p = '\0';
+    }
+    else
+    {
+        p = strchr(atcmd_name, '\r');
+        *p = '\0';
+    }
+
+    for (i = 0; atcmd_ap[i] != NULL; i++)
+    {
+        len = strlen(atcmd_ap[i]);
+ 
+        if (!strcasecmp(&atcmd_name[2], atcmd_ap[i]))
+        {
+            //for the bluetooth vbatt power.[[
+            if(!strcasecmp(&atcmd_name[2] ,"%BTTM"))
+            {
+                extern int pm_chg_vbatt_fet_on(int );
+                pm_chg_vbatt_fet_on(1);
+            }
+            //for the bluetooth vbatt power.]]
+
+            if ((p = strchr(buf, '=')) || (p = strchr(buf, '?')))
+            {
+                strncpy(atcmd_state, p, count);
+                p = strchr(atcmd_state, '\r');
+                *p = '\0';
+            }
+            else
+            {
+                atcmd_state[0] = '\0';
+            }
+
+            pr_info("%s: ATCMD_TO_AP: matching!!! %s, %s\n", __func__, atcmd_name, atcmd_state);
+            return ATCMD_TO_AP;
+        }
+    }
+
+    pr_info("%s: ATCMD_TO_CP\n", __func__);
+    return ATCMD_TO_CP;
+}
+
+ssize_t atcmd_queue(const char *buf, size_t count)
+{
+    struct gsdio_port *port = ports[0].port;
+    struct atcmd_request *req;
+
+    /* FIXME: this function is not full implementation */
+    //pr_info("%s\n", __func__);
+
+    if (count <= 0)
+    {
+        pr_info("%s: count <= 0\n", __func__);
+        return 0;
+    }
+
+    /* atcmd_pool is empty or new pool */
+    if (list_empty(&atcmd_pool) ||
+        (req = list_last_entry(&atcmd_pool, struct atcmd_request, list))->status == 1)
+    {
+        //pr_info("%s: empty or new pool\n", __func__);
+
+        if (count >= 3 && strncasecmp(buf, "at%", 3) && strncasecmp(buf, "at+", 3))
+        {
+            return 0;
+        }
+        else if (count >= 2 && strncasecmp(buf, "at", 2))
+        {
+            return 0;
+        }
+        else if (buf[0] != 'a' && buf[0] != 'A')
+        {
+            return 0;
+        }
+
+        req = atcmd_alloc_req();
+
+        if( req == NULL ) // knk
+        {
+            pr_err("can't alloc for req\n" ) ;
+            return -ENOMEM ;
+        }
+        list_add(&req->list, &atcmd_pool);
+    }
+
+//    pr_info("%s: [%d][%s]\n", __func__, req->length, req->buf);
+    memcpy(&req->buf[req->length], buf, count);
+    req->length += count;
+    req->buf[req->length] = '\0';
+
+    if (1) {
+        char *tmp;
+        char *p1 = req->buf;
+        char *p2;
+        unsigned remain = req->length;
+
+        tmp = p2 = kmalloc( (remain * 4) + 1, GFP_ATOMIC);
+
+        while (remain > 0)
+        {
+            if (*p1 >= 0x20)
+            {
+                *p2 = *p1;
+            }
+            else
+            {
+                switch (*p1)
+                {
+                    case '\r':
+                        *p2 = '\\';
+                        p2++;
+                        *p2 = 'r';
+                        break;
+                    case '\n':
+                        *p2 = '\\';
+                        p2++;
+                        *p2 = 'n';
+                        break;
+                    default:
+                        sprintf(p2, "(%02X)", *p1);
+                        p2 += 3;
+                        break;
+                }
+            }
+
+            p1++;
+            p2++;
+            remain--;
+        }
+        *p2 = '\0';
+        pr_info("%s: [%d][%s]\n", __func__, req->length, tmp);
+        kfree(tmp);
+    }
+
+    if ((buf[count-1] == '\r') ||(buf[count-1] == '\n') || (buf[count-1] == '\0'))
+    {
+        if (atcmd_to(req->buf, req->length) == ATCMD_TO_AP)
+        {
+            char *envp[3];
+            char name[120], state[120];
+
+            snprintf(name, 120, "AT_NAME=%s", atcmd_name);
+            snprintf(state, 120, "AT_STATE=%s", atcmd_state);
+            envp[0] = name;
+            envp[1] = state;
+            envp[2] = NULL;
+
+            spin_unlock_irq(&port->port_lock);
+            kobject_uevent_env(&atcmd_dev->kobj, KOBJ_CHANGE, envp);
+            spin_lock_irq(&port->port_lock);
+
+            if (atcmd_modem)
+            {
+                req->status = 1;
+                wake_up_interruptible(&atcmd_read_wait);
+            }
+            else
+            {
+                list_del(&req->list);
+                atcmd_free_req(req);
+            }
+        }
+        else
+        {
+            /* write to sdio */
+            atcmd_sdio_write(req->buf, req->length);
+            list_del(&req->list);
+            atcmd_free_req(req);
+        }
+    }
+
+    return 1;
+}
+
+ssize_t atcmd_usb_write(const char *buf, size_t count)
+{
+    struct gsdio_port *port = ports[0].port;
+    struct list_head *pool = &port->write_pool;
+    struct usb_ep *in;
+    struct usb_request *req;
+    int ret;
+
+//    pr_info("%s: count=%d\n", __func__, count);
+
+    if (!port->port_usb) {
+        pr_err("%s: usb disconnected\n", __func__);
+
+        /* take out all the pending data from sdio */
+        gsdio_read_pending(port);
+
+        return -EIO;
+    }
+
+    in = port->port_usb->in;
+
+    spin_lock_irq(&port->port_lock);
+    while (list_empty(pool))
+    {
+//        pr_info("%s: list_empty\n", __func__);
+        spin_unlock_irq(&port->port_lock);
+        usleep(10);
+        spin_lock_irq(&port->port_lock);
+    }
+    req = list_entry(pool->next, struct usb_request, list);
+    list_del(&req->list);
+    spin_unlock_irq(&port->port_lock);
+
+    memcpy(req->buf, buf, count);
+    req->length = count;
+
+    ret = usb_ep_queue(in, req, GFP_KERNEL);
+    spin_lock_irq(&port->port_lock);
+    if (ret) {
+        pr_info("%s: usb ep out queue failed"
+                "port:%p, port#%d err:%d\n",
+                __func__, port, port->port_num, ret);
+
+        /* could be usb disconnected */
+        if (!port->port_usb)
+        {
+            pr_info("%s: could be usb disconnected\n", __func__);
+            gsdio_free_req(in, req);
+        }
+        else
+        {
+            list_add(&req->list, pool);
+        }
+        spin_unlock_irq(&port->port_lock);  // it was locked up without release knk
+        return -EAGAIN;
+    }
+
+//    port->nbytes_tolaptop += count;
+    spin_unlock_irq(&port->port_lock);
+    return count;
+}
+
+ssize_t atcmd_sdio_write(const char *buf, size_t count)
+{
+    struct gsdio_port *port = ports[0].port;
+    int ret;
+
+//    pr_info("%s: count=%d\n", __func__, count);
+
+    if (!port->sdio_open)
+    {
+        pr_err("%s: sio channel is not open\n", __func__);
+        return -1;
+    }
+
+    spin_unlock_irq(&port->port_lock);
+    ret = sdio_write(port->sport_info->ch, buf, count);
+    spin_lock_irq(&port->port_lock);
+
+    return ret;
+}
+
+int atcmd_open(struct inode *inode, struct file *filp)
+{
+//    pr_info("%s\n", __func__);
+    atcmd_modem++;
+    return 0;
+}
+
+ssize_t atcmd_read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
+{
+    struct atcmd_request *req;
+
+//    pr_info("%s\n", __func__);
+
+    if (list_empty(&atcmd_pool))
+    {
+        if (filp->f_flags & O_NONBLOCK)
+            return -EAGAIN;
+
+//        pr_info("%s:1 sleeping?\n", __func__);
+        interruptible_sleep_on(&atcmd_read_wait);
+//        pr_info("%s:1 awake\n", __func__);
+
+        if (signal_pending(current))
+            return -ERESTARTSYS;
+
+        req = list_first_entry(&atcmd_pool, struct atcmd_request, list);
+    }
+    else
+    {
+        req = list_first_entry(&atcmd_pool, struct atcmd_request, list);
+
+//        pr_info("%s:2 sleeping?\n", __func__);
+        wait_event_interruptible(atcmd_read_wait, req->status);
+//        pr_info("%s:2 awake\n", __func__);
+    }
+
+    list_del(&req->list);
+
+    if (req->status != 1)
+    {
+        atcmd_free_req(req);
+        return 0;
+    }
+    memcpy(buf, req->buf, req->length-1);
+    atcmd_free_req(req);
+
+    return req->length-1;
+}
+
+ssize_t atcmd_write(struct file *filp, const char *buf, size_t count, loff_t *f_pos)
+{
+//    pr_info("%s\n", __func__);
+    return atcmd_usb_write(buf, count);
+}
+
+int atcmd_release(struct inode *inodes, struct file *filp)
+{
+//    pr_info("%s\n", __func__);
+    atcmd_modem--;
+    if (atcmd_modem < 0) atcmd_modem = 0;
+    return 0;
+}
+
+struct file_operations atcmd_fops =
+{
+    .owner      = THIS_MODULE,
+    .read       = atcmd_read,
+    .write      = atcmd_write,
+    .open       = atcmd_open,
+    .release    = atcmd_release,
+};
+
+static char *atcmd_dev_node(struct device *dev, mode_t *mode)
+{
+    *mode = 0666;
+    return NULL;
+}
+
+static ssize_t atcmd_show_name(struct class *class, struct class_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "%s\n", atcmd_name);
+}
+static ssize_t atcmd_store_name(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+    return atcmd_usb_write(buf, count);
+}
+static CLASS_ATTR(name, 0644, atcmd_show_name, atcmd_store_name);
+
+static ssize_t atcmd_show_state(struct class *class, struct class_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "%s\n", atcmd_state);
+}
+static CLASS_ATTR(state, 0444, atcmd_show_state, NULL);
+
+static __init int atcmd_init(void)
+{
+    int err;
+
+    atcmd_major = register_chrdev(0, "modem", &atcmd_fops);
+    if (atcmd_major < 0)
+        return atcmd_major;
+
+    pr_info("%s: ATCMD Handler /dev/lge_atcmd major=%d\n", __func__, atcmd_major);
+
+    atcmd_class = class_create(THIS_MODULE, "atcmd");
+    atcmd_class->devnode = atcmd_dev_node;
+    atcmd_dev = device_create(atcmd_class, NULL, MKDEV(atcmd_major, 0), NULL, "lge_atcmd");
+    atcmd_dev->class = atcmd_class;
+
+    err = class_create_file(atcmd_class, &class_attr_name);
+    err = class_create_file(atcmd_class, &class_attr_state);
+
+    INIT_LIST_HEAD(&atcmd_pool);
+    return 0;
+}
+
+static __exit void atcmd_exit(void)
+{
+    pr_info("%s\n", __func__);
+    class_remove_file(atcmd_class, &class_attr_name);
+    class_remove_file(atcmd_class, &class_attr_state);
+    unregister_chrdev(atcmd_major, "modem");
+}
+
+module_init(atcmd_init);
+module_exit(atcmd_exit);
+
+MODULE_LICENSE("Dual BSD/GPL");
+/* [END] hansun.lee@lge.com 2011.04.14 */
+#endif

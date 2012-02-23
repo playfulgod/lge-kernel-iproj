@@ -97,8 +97,13 @@ static void update_timer_locked(struct alarm_queue *base, bool head_removed)
 	}
 
 	hrtimer_try_to_cancel(&base->timer);
+#if 0//def LGE_KERNEL_ALARM_SANITY_CHECK
 	base->timer._expires = ktime_add(base->delta, alarm->expires);
 	base->timer._softexpires = ktime_add(base->delta, alarm->softexpires);
+#else
+	base->timer._expires = ktime_add_safe(base->delta, alarm->expires);
+	base->timer._softexpires = ktime_add_safe(base->delta, alarm->softexpires);
+#endif
 	hrtimer_start_expires(&base->timer, HRTIMER_MODE_ABS);
 }
 
@@ -467,8 +472,11 @@ static int alarm_resume(struct platform_device *pdev)
 	unsigned long       flags;
 
 	pr_alarm(SUSPEND, "alarm_resume(%p)\n", pdev);
-
+#ifdef CONFIG_RTC_PM8058 //platform@lge.com : alarm bug fix
+	rtc_read_alarm(alarm_rtc_dev, &alarm);
+#else //android orginal code
 	memset(&alarm, 0, sizeof(alarm));
+#endif
 	alarm.enabled = 0;
 	rtc_set_alarm(alarm_rtc_dev, &alarm);
 

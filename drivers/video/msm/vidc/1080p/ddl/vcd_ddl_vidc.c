@@ -826,6 +826,20 @@ u32 ddl_vidc_decode_set_buffers(struct ddl_client_context *ddl)
 			&ddl->shared_mem[ddl->command_channel],
 			decoder->dpb_buf_size.size_y,
 			decoder->dpb_buf_size.size_c);
+		//S hk qct patch case#00584622 , 2011-08-22 youngsoon.lim
+		DDL_MSG_ERROR("override profile %d", decoder->codec.codec); 			
+			if (decoder->codec.codec == VCD_CODEC_MPEG4
+					  || decoder->codec.codec == VCD_CODEC_DIVX_4
+					  || decoder->codec.codec == VCD_CODEC_DIVX_5
+					  || decoder->codec.codec == VCD_CODEC_DIVX_6
+					  || decoder->codec.codec == VCD_CODEC_XVID)
+			 { 
+				vidc_sm_set_mpeg4_profile_override(&ddl->shared_mem[ddl->command_channel],
+				VIDC_SM_PROFILE_INFO_ASP);
+				DDL_MSG_ERROR("override done");
+			}
+		//E hk qct patch case#00584622
+		
 	}
 	init_buf_param.cmd_seq_num = ++ddl_context->cmd_seq_num;
 	init_buf_param.inst_id = ddl->instance_id;

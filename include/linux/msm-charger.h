@@ -49,6 +49,9 @@ enum msm_hardware_charger_event {
 	CHG_BATT_REMOVED,
 	CHG_BATT_STATUS_CHANGE,
 	CHG_BATT_NEEDS_RECHARGING,
+#ifdef CONFIG_LGE_PM_BATTERY_ALARM
+	CHG_BATT_LOW_EVENT,
+#endif
 };
 
 /**
@@ -90,7 +93,13 @@ struct msm_battery_gauge {
 	int (*is_battery_id_valid) (void);
 	int (*get_battery_status)(void);
 	int (*get_batt_remaining_capacity) (void);
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+	int (*get_battery_temperature_adc) (void);
+#endif
 	int (*monitor_for_recharging) (void);
+#ifdef CONFIG_LGE_PM
+	uint32_t (*get_hw_fsm_state) (void);
+#endif
 };
 /**
  * struct msm_charger_platform_data

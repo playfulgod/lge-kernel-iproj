@@ -199,6 +199,14 @@ qup_i2c_interrupt(int irq, void *devid)
 	if (status & I2C_STATUS_ERROR_MASK) {
 		dev_err(dev->dev, "QUP: I2C status flags :0x%x, irq:%d\n",
 			status, irq);
+
+		if(status & 0x04)
+		{			
+			printk("=====================\n");
+			printk("status = 0x%x\n",status);
+			printk("=====================\n");
+		}
+
 		err = status;
 		/* Clear Error interrupt if it's a level triggered interrupt*/
 		if (dev->num_irqs == 1)
@@ -930,6 +938,7 @@ handle_irq:
 
 	ret = num;
  out_err:
+
 	disable_irq(dev->err_irq);
 	if (dev->num_irqs == 3) {
 		disable_irq(dev->in_irq);
@@ -940,6 +949,7 @@ handle_irq:
 	dev->pos = 0;
 	dev->err = 0;
 	dev->cnt = 0;
+
 	dev->pwr_timer.expires = jiffies + 3*HZ;
 	add_timer(&dev->pwr_timer);
 	mutex_unlock(&dev->mlock);

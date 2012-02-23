@@ -31,14 +31,16 @@
 #include <mach/msm_rpcrouter.h>
 #include <mach/oem_rapi_client.h>
 
-#define OEM_RAPI_PROG  0x3000006B
+// mj.cha@lge.com 2011-08-22, changed PROG ID for using RPC between Kernel and MDM
+//#define OEM_RAPI_PROG  0x3000006B //PROG ID of MSM Modem
+#define OEM_RAPI_PROG  0x3001006B //PROG ID of MDM
 #define OEM_RAPI_VERS  0x00010001
 
 #define OEM_RAPI_NULL_PROC                        0
 #define OEM_RAPI_RPC_GLUE_CODE_INFO_REMOTE_PROC   1
 #define OEM_RAPI_STREAMING_FUNCTION_PROC          2
 
-#define OEM_RAPI_CLIENT_MAX_OUT_BUFF_SIZE 128
+#define OEM_RAPI_CLIENT_MAX_OUT_BUFF_SIZE 920
 
 static struct msm_rpc_client *rpc_client;
 static uint32_t open_count;
@@ -176,11 +178,19 @@ int oem_rapi_client_streaming_function(
 	struct oem_rapi_client_streaming_func_arg *arg,
 	struct oem_rapi_client_streaming_func_ret *ret)
 {
+/* byongdoo.oh@lge.com error check to prevent from infinite reset */
+    if (IS_ERR(client))
+    {
+        pr_err("%s fail!! and return",__func__);
+        return -1;
+    }
+/* end byongdoo.oh@lge.com */
+
 	return msm_rpc_client_req2(client,
 				   OEM_RAPI_STREAMING_FUNCTION_PROC,
 				   oem_rapi_client_streaming_function_arg, arg,
 				   oem_rapi_client_streaming_function_ret,
-				   ret, -1);
+				   ret, msecs_to_jiffies(30000));
 }
 EXPORT_SYMBOL(oem_rapi_client_streaming_function);
 
@@ -337,6 +347,15 @@ static const struct file_operations debug_ops = {
 	.read = debug_read,
 	.write = debug_write,
 };
+
+/* BEGIN: 0014110 jihoon.lee@lge.com 20110115 */
+/* MOD 0014110: [FACTORY RESET] stability */
+/* sync up with oem_rapi */
+uint32_t get_oem_rapi_open_cnt(void)
+{
+	return open_count;
+}
+EXPORT_SYMBOL(get_oem_rapi_open_cnt);
 
 static void __exit oem_rapi_client_mod_exit(void)
 {

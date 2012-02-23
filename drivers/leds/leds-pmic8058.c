@@ -63,12 +63,29 @@ struct pmic8058_led_data {
 #define PM8058_MAX_LEDS		7
 static struct pmic8058_led_data led_data[PM8058_MAX_LEDS];
 
+#ifdef CONFIG_LGE_PM_FACTORY_CURRENT_DOWN
+extern uint16_t battery_info_get(void);
+extern int usb_cable_info;
+#endif
+
 static void kp_bl_set(struct pmic8058_led_data *led, enum led_brightness value)
 {
 	int rc;
 	u8 level;
 	unsigned long flags;
 
+#ifdef CONFIG_LGE_PM_FACTORY_CURRENT_DOWN
+	if((0 == battery_info_get())&&((usb_cable_info == 6) ||(usb_cable_info == 7)||(usb_cable_info == 11)))
+	{
+		pr_err("%s: can't set keypad backlight level in factory mode \n", __func__);
+        return;
+	}
+#endif
+
+#ifdef CONFIG_LGE_PMIC8058_KEYPAD
+    if(value > led->cdev.max_brightness)
+        value = led->cdev.max_brightness;
+#endif
 	spin_lock_irqsave(&led->value_lock, flags);
 	level = (value << PM8058_DRV_KEYPAD_BL_SHIFT) &
 				 PM8058_DRV_KEYPAD_BL_MASK;

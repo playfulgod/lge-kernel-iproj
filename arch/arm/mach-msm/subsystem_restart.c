@@ -34,6 +34,13 @@
 #include <mach/subsystem_notif.h>
 #include <mach/subsystem_restart.h>
 
+/* neo.kang@lge.com 2011-06-01
+ * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+#include <mach/restart.h>
+
+#endif
+
 #include "smd_private.h"
 
 #if defined(SUBSYS_RESTART_DEBUG)
@@ -58,6 +65,10 @@ struct restart_thread_data {
 
 static int restart_level;
 static int enable_ramdumps;
+
+#ifdef CONFIG_LGE_DEBUG
+extern void q6audio_dsp_not_responding(void);
+#endif
 
 static LIST_HEAD(subsystem_list);
 static DEFINE_MUTEX(subsystem_list_lock);
@@ -267,8 +278,14 @@ static int subsystem_restart_thread(void *data)
 	 * sequence for these subsystems. In the latter case, panic and bail
 	 * out, since a subsystem died in its powerup sequence.
 	 */
-	if (!mutex_trylock(powerup_lock))
+	if (!mutex_trylock(powerup_lock)) {
+		/* neo.kang@lge.com 2011-06-01
+		 * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+		msm_set_restart_mode(SUB_THD_F_PWR);
+#endif
 		panic("%s: Subsystem died during powerup!", __func__);
+	}
 
 	/* Now it is necessary to take the registration lock. This is because
 	 * the subsystem list in the SoC restart order will be traversed
@@ -291,9 +308,15 @@ static int subsystem_restart_thread(void *data)
 		pr_info("subsys-restart: Shutting down %s\n",
 			restart_list[i]->name);
 
-		if (restart_list[i]->shutdown(subsys->name) < 0)
+		if (restart_list[i]->shutdown(subsys->name) < 0){
+		/* neo.kang@lge.com 2011-06-01
+		 * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+			msm_set_restart_mode(SUB_THD_F_SD);
+#endif
 			panic("%s: Failed to shutdown %s!\n", __func__,
 				restart_list[i]->name);
+		}
 	}
 
 	_send_notification_to_order(restart_list, restart_list_count,
@@ -330,9 +353,15 @@ static int subsystem_restart_thread(void *data)
 		pr_info("subsys-restart: Powering up %s\n",
 			restart_list[i]->name);
 
-		if (restart_list[i]->powerup(subsys->name) < 0)
+		if (restart_list[i]->powerup(subsys->name) < 0){
+		/* neo.kang@lge.com 2011-06-01
+		 * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+			msm_set_restart_mode(SUB_THD_F_PWR);
+#endif
 			panic("%s: Failed to powerup %s!", __func__,
 				restart_list[i]->name);
+		}
 	}
 
 	_send_notification_to_order(restart_list,
@@ -351,6 +380,24 @@ static int subsystem_restart_thread(void *data)
 	kfree(data);
 	do_exit(0);
 }
+
+//wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH
+
+// for subsystem discrimination
+enum {
+	ULS_NO_SUBSYSTEM,			// no subsystem crash was occurred.
+	ULS_SUBSYSTEM_MDM,		// mdm  subsystem crash was occurred.
+	ULS_SUBSYSTEM_MODEM,		// AP 8k modem subsystem crash was occured.
+	ULS_SUBSYSTEM_LPASS,		// AP lpass subsystem crash was occured.
+	ULS_SUBSYSTEM_OTHER		// this should not be used.
+};
+
+
+int uls_the_kind_of_subsys = ULS_NO_SUBSYSTEM;	// store current subsystem
+#endif
+//wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display
+
 
 int subsystem_restart(const char *subsys_name)
 {
@@ -376,6 +423,31 @@ int subsystem_restart(const char *subsys_name)
 				subsys_name);
 		return -EINVAL;
 	}
+	
+//wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display	
+#ifdef CONFIG_LGE_SDIO_DEBUG_CH	
+{
+	if (strncmp("external_modem", subsys_name, 14) == 0)
+	{
+		uls_the_kind_of_subsys = ULS_SUBSYSTEM_MDM;
+	}
+	else if (strncmp("modem", subsys_name, 5) == 0)
+	{
+		uls_the_kind_of_subsys = ULS_SUBSYSTEM_MODEM;			
+	}
+	else if (strncmp("lpass", subsys_name, 5) == 0)
+	{
+		uls_the_kind_of_subsys = ULS_SUBSYSTEM_LPASS;
+	}
+	else // this should not be happened.
+	{	
+		uls_the_kind_of_subsys = ULS_SUBSYSTEM_OTHER;	
+		pr_info("%s: Unkown subsystem: Restart sequence requested for  %s\n",
+				__func__, subsys_name);
+	}
+}
+#endif
+//wj1208.jo@lge.com, 2011-09-20, [MDM BSP] for ULS display		
 
 	if (restart_level != RESET_SOC) {
 		data = kzalloc(sizeof(struct restart_thread_data), GFP_KERNEL);
@@ -410,24 +482,45 @@ int subsystem_restart(const char *subsys_name)
 		 */
 		tsk = kthread_run(subsystem_restart_thread, data,
 				"subsystem_subsystem_restart_thread");
-		if (IS_ERR(tsk))
+		if (IS_ERR(tsk)) {
+		/* neo.kang@lge.com 2011-06-01
+		 * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+			msm_set_restart_mode(SUB_UNAB_THD);
+#endif
 			panic("%s: Unable to create thread to restart %s",
 				__func__, subsys->name);
+		}
 
 		break;
 
 	case RESET_SOC:
-
+		
+#if 0//#ifdef CONFIG_LGE_DEBUG //platform@lge.com : ramdump for Q6 when Q6 crash or watchdog reset
+/* this code need to  start a dspcrashd deamon in init.qcom.rc */
+		if (!strncmp("lpass", subsys_name,SUBSYS_NAME_MAX_LENGTH)) 
+			q6audio_dsp_not_responding(); 
+#endif
 		mutex_lock(&subsystem_list_lock);
 		list_for_each_entry(subsys, &subsystem_list, list)
 			if (subsys->crash_shutdown)
 				subsys->crash_shutdown(subsys->name);
 		mutex_unlock(&subsystem_list_lock);
 
+		/* neo.kang@lge.com 2011-06-01
+		 * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+		msm_set_restart_mode(SUB_RESET_SOC);
+#endif
 		panic("Resetting the SOC");
 		break;
 
 	default:
+		/* neo.kang@lge.com 2011-06-01
+		 * add the error handler */
+#if defined(CONFIG_LGE_ERROR_HANDLER)
+		msm_set_restart_mode(SUB_UNKNOWN);
+#endif
 		panic("subsys-restart: Unknown restart level!\n");
 	break;
 

@@ -16,7 +16,7 @@
  *
  */
 
-/* #define DEBUG */
+#define DEBUG
 #define DEV_DBG_PREFIX "HDMI: "
 /* #define PORT_DEBUG */
 /* #define REG_DUMP */
@@ -95,6 +95,17 @@ static DEFINE_MUTEX(hdmi_msm_state_mutex);
 static DEFINE_MUTEX(hdcp_auth_state_mutex);
 
 static void hdmi_msm_hdcp_enable(void);
+
+
+#ifdef CONFIG_LGE_MHL_SII9244  /* I-Project :  chanhee.park@lge.com */
+static void hdmi_msm_audio_info_setup(boolean enabled, int num_of_channels,
+	int level_shift, boolean down_mix);  
+
+boolean hdmi_msm_panel_power(void)
+{
+	return hdmi_msm_state->panel_power_on;
+}
+#endif 
 
 uint32 hdmi_msm_get_io_base(void)
 {
@@ -265,7 +276,9 @@ static void hdmi_msm_hpd_off(void);
 static void hdmi_msm_hpd_state_work(struct work_struct *work)
 {
 	boolean hpd_state;
-	char *envp[2];
+#ifndef CONFIG_LGE_MHL_SII9244 
+	char *envp[2];   
+#endif
 
 	if (!hdmi_msm_state || !hdmi_msm_state->hpd_initialized || !HDMI_BASE) {
 		DEV_DBG("%s: ignored, probe failed\n", __func__);
@@ -329,15 +342,23 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 			hdmi_msm_state->reauth = FALSE ;
 #endif
 			/* Build EDID table */
-			envp[0] = "HDCP_STATE=FAIL";
+#ifndef CONFIG_LGE_MHL_SII9244  /* I-Project: fix audio pcm error  chanhee.park@lge.com */
+                     envp[0] = "HDCP_STATE=FAIL";
 			envp[1] = NULL;
 			DEV_INFO("HDMI HPD: QDSP OFF\n");
 			kobject_uevent_env(external_common_state->uevent_kobj,
 				KOBJ_CHANGE, envp);
+#endif
 			hdmi_msm_turn_on();
 			DEV_INFO("HDMI HPD: sense CONNECTED: send ONLINE\n");
 			kobject_uevent(external_common_state->uevent_kobj,
 				KOBJ_ONLINE);
+			
+#ifdef CONFIG_LGE_MHL_SII9244 			
+			mutex_lock(&hdmi_msm_state_mutex);
+			external_common_state->cable_connected = 1;
+			mutex_unlock(&hdmi_msm_state_mutex);
+#endif
 			hdmi_msm_hdcp_enable();
 #ifndef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 			/* Send Audio for HDMI Compliance Cases*/
@@ -350,8 +371,15 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 		} else {
 			DEV_INFO("HDMI HPD: sense DISCONNECTED: send OFFLINE\n"
 				);
+#ifdef CONFIG_LGE_MHL_SII9244 			
+			if(external_common_state->cable_connected){
+				kobject_uevent(external_common_state->uevent_kobj,
+				 KOBJ_OFFLINE);
+			}
+#else
 			kobject_uevent(external_common_state->uevent_kobj,
-				KOBJ_OFFLINE);
+				 KOBJ_OFFLINE);				
+#endif			
 		}
 	}
 
@@ -2924,18 +2952,17 @@ static int hdmi_msm_audio_off(void)
 	return 0;
 }
 
-
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
+/* modified AVIInfoFrame for 480p,576p - chanhee.park@lge.com*/
 static uint8 hdmi_msm_avi_iframe_lut[][14] = {
 /*	480p60	480i60	576p50	576i50	720p60	720p50	1080p60	1080i60	1080p50
 	1080i50	1080p24	1080p30	1080p25	640x480p */
 	{0x10,	0x10,	0x10,	0x10,	0x10,	0x10,	0x10,	0x10,	0x10,
 	 0x10,	0x10,	0x10,	0x10,	0x10},
-	{0x18,	0x18,	0x28,	0x28,	0x28,	0x28,	0x28,	0x28,	0x28,
+	{/*0x18*/0x28,	0x18,	0x28,	0x28,	0x28,	0x28,	0x28,	0x28,	0x28,
 	 0x28,	0x28,	0x28,	0x28,	0x18},
 	{0x04,	0x04,	0x04,	0x04,	0x04,	0x04,	0x04,	0x04,	0x04,
 	 0x04,	0x04,	0x04,	0x04,	0x88},
-	{0x02,	0x06,	0x11,	0x15,	0x04,	0x13,	0x10,	0x05,	0x1F,
+	{/*0x02*/0x03,	0x06,    /*0x11*/0x12 ,  0x15,	0x04,	0x13,	0x10,	0x05,	0x1F,
 	 0x14,	0x20,	0x22,	0x21,	0x01},
 	{0x00,	0x01,	0x00,	0x01,	0x00,	0x00,	0x00,	0x00,	0x00,
 	 0x00,	0x00,	0x00,	0x00,	0x00},
@@ -3084,7 +3111,6 @@ static void hdmi_msm_avi_info_frame(void)
 	/* 0x3 for AVI InfFrame enable (every frame) */
 	HDMI_OUTP(0x002C, HDMI_INP(0x002C) | 0x00000003L);
 }
-#endif
 
 #ifdef CONFIG_FB_MSM_HDMI_3D
 static void hdmi_msm_vendor_infoframe_packetsetup(void)
@@ -3244,9 +3270,8 @@ static void hdmi_msm_turn_on(void)
 	hdmi_msm_video_setup(external_common_state->video_resolution);
 	if (!hdmi_msm_is_dvi_mode())
 		hdmi_msm_audio_setup();
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 	hdmi_msm_avi_info_frame();
-#endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT */
+
 #ifdef CONFIG_FB_MSM_HDMI_3D
 	hdmi_msm_vendor_infoframe_packetsetup();
 #endif
@@ -3391,6 +3416,9 @@ static int hdmi_msm_power_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 	bool changed;
+#ifndef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
+	char *envp[2];  
+#endif
 
 	if (!hdmi_msm_state || !hdmi_msm_state->hdmi_app_clk || !HDMI_BASE)
 		return -ENODEV;
@@ -3403,6 +3431,15 @@ static int hdmi_msm_power_on(struct platform_device *pdev)
 	}
 	mutex_unlock(&hdmi_msm_state_mutex);
 #endif
+
+#ifdef CONFIG_LGE_MHL_SII9244	
+	 mutex_lock(&hdmi_msm_state_mutex);
+	 if(!mhl_power_on()){		
+		mutex_unlock(&hdmi_msm_state_mutex);
+		return 0;
+	}
+	mutex_unlock(&hdmi_msm_state_mutex);
+#endif  
 
 	DEV_INFO("power: ON (%dx%d %d)\n", mfd->var_xres, mfd->var_yres,
 		mfd->var_pixclock);
@@ -3417,6 +3454,7 @@ static int hdmi_msm_power_on(struct platform_device *pdev)
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT */
 
 	changed = hdmi_common_get_video_format_from_drv_data(mfd);
+
 	if (!external_common_state->hpd_feature_on) {
 		int rc = hdmi_msm_hpd_on(true);
 		DEV_INFO("HPD: panel power without 'hpd' feature on\n");
@@ -3425,6 +3463,8 @@ static int hdmi_msm_power_on(struct platform_device *pdev)
 			return rc;
 		}
 	}
+
+
 	hdmi_msm_audio_info_setup(TRUE, 0, 0, FALSE);
 
 	mutex_lock(&external_common_state_hpd_mutex);
@@ -3435,7 +3475,7 @@ static int hdmi_msm_power_on(struct platform_device *pdev)
 		hdmi_msm_turn_on();
 	} else
 		mutex_unlock(&external_common_state_hpd_mutex);
-
+	
 	hdmi_msm_dump_regs("HDMI-ON: ");
 
 	DEV_INFO("power=%s DVI= %s\n",
@@ -3454,6 +3494,7 @@ static int hdmi_msm_power_off(struct platform_device *pdev)
 {
 	if (!hdmi_msm_state->hdmi_app_clk)
 		return -ENODEV;
+
 #ifdef CONFIG_SUSPEND
 	mutex_lock(&hdmi_msm_state_mutex);
 	if (hdmi_msm_state->pm_suspended) {
@@ -3464,6 +3505,15 @@ static int hdmi_msm_power_off(struct platform_device *pdev)
 	mutex_unlock(&hdmi_msm_state_mutex);
 #endif
 
+#ifdef CONFIG_LGE_MHL_SII9244			
+       mutex_lock(&hdmi_msm_state_mutex); 
+	if((!mhl_power_on()) && (hdmi_msm_state->panel_power_on == FALSE)){		
+		mutex_unlock(&hdmi_msm_state_mutex);
+		return 0;
+	}
+	mutex_unlock(&hdmi_msm_state_mutex);
+#endif 
+
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 	mutex_lock(&hdmi_msm_state_mutex);
 	if (hdmi_msm_state->hdcp_activating) {
@@ -3473,10 +3523,16 @@ static int hdmi_msm_power_off(struct platform_device *pdev)
 		return 0;
 	}
 	mutex_unlock(&hdmi_msm_state_mutex);
+	
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT */
 
+#ifdef CONFIG_LGE_MHL_SII9244
+     if(!mhl_power_on())
+#endif
+     {
 	DEV_INFO("power: OFF (audio off, Reset Core)\n");
 	hdmi_msm_audio_off();
+     }
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 	hdcp_deauthenticate();
 #endif
@@ -3486,12 +3542,24 @@ static int hdmi_msm_power_off(struct platform_device *pdev)
 	hdmi_msm_hpd_on(false);
 
 	mutex_lock(&external_common_state_hpd_mutex);
-	if (!external_common_state->hpd_feature_on)
+
+/* for HDMI always on - chanhee.park@lge.com */
+#ifdef CONFIG_LGE_MHL_SII9244	
+	if(!mhl_power_on())
 		hdmi_msm_hpd_off();
+	else
+		hdmi_msm_hpd_on(true);
+#else
+	if (!external_common_state->hpd_feature_on) 
+		hdmi_msm_hpd_off();
+#endif
+
 	mutex_unlock(&external_common_state_hpd_mutex);
 
 	hdmi_msm_state->panel_power_on = FALSE;
+
 	return 0;
+
 }
 
 static int __devinit hdmi_msm_probe(struct platform_device *pdev)
@@ -3725,9 +3793,17 @@ static int hdmi_msm_device_pm_suspend(struct device *dev)
 		return 0;
 	}
 
+#ifdef CONFIG_LGE_MHL_SII9244			
+      if(!mhl_power_on()){		
+		mutex_unlock(&hdmi_msm_state_mutex);
+		return 0;
+	}
+#endif 
+
 	DEV_DBG("pm_suspend\n");
 
 	del_timer(&hdmi_msm_state->hpd_state_timer);
+
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 	del_timer(&hdmi_msm_state->hdcp_timer);
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT */
@@ -3752,6 +3828,13 @@ static int hdmi_msm_device_pm_resume(struct device *dev)
 		mutex_unlock(&hdmi_msm_state_mutex);
 		return 0;
 	}
+
+#ifdef CONFIG_LGE_MHL_SII9244			
+      if(!mhl_power_on()){		
+		mutex_unlock(&hdmi_msm_state_mutex);
+		return 0;
+	}
+#endif
 
 	DEV_DBG("pm_resume\n");
 
@@ -3806,7 +3889,12 @@ static int __init hdmi_msm_init(void)
 	}
 
 	external_common_state = &hdmi_msm_state->common;
-	external_common_state->video_resolution = HDMI_VFRMT_1920x1080p60_16_9;
+#ifdef CONFIG_LGE_MHL_SII9244	
+	external_common_state->video_resolution = HDMI_VFRMT_1920x1080p30_16_9; 
+#else
+	external_common_state->video_resolution = HDMI_VFRMT_1920x1080p60_16_9; 
+#endif
+
 #ifdef CONFIG_FB_MSM_HDMI_3D
 	external_common_state->switch_3d = hdmi_msm_switch_3d;
 #endif

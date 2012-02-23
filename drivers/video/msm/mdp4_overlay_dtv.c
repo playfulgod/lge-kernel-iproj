@@ -328,8 +328,7 @@ void mdp4_overlay_dtv_vsync_push(struct msm_fb_data_type *mfd,
 	/* change mdp clk while mdp is idle` */
 	mdp4_set_perf_level();
 }
-
-static void mdp4_overlay_dtv_wait4_ov_done(struct msm_fb_data_type *mfd)
+static void mdp4_overlay_dtv_ov_start(struct msm_fb_data_type *mfd) // case 00627432  QCT HDMI patch
 {
 	unsigned long flag;
 
@@ -342,15 +341,19 @@ static void mdp4_overlay_dtv_wait4_ov_done(struct msm_fb_data_type *mfd)
 	mdp_intr_mask |= INTR_OVERLAY1_DONE;
 	outp32(MDP_INTR_ENABLE, mdp_intr_mask);
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
+}
+
+static void mdp4_overlay_dtv_wait4_ov_done(struct msm_fb_data_type *mfd) // case 00627432  QCT HDMI patch
+{
 	wait_for_completion_killable(&dtv_pipe->comp);
 	mdp_disable_irq(MDP_OVERLAY1_TERM);
 }
-
 void mdp4_overlay_dtv_ov_done_push(struct msm_fb_data_type *mfd,
 			struct mdp4_overlay_pipe *pipe)
 {
 
 	mdp4_overlay_reg_flush(pipe, 1);
+     mdp4_overlay_dtv_ov_start(mfd);  // case 00627432  QCT HDMI patch
 	if (pipe->flags & MDP_OV_PLAY_NOWAIT)
 		return;
 
@@ -360,6 +363,11 @@ void mdp4_overlay_dtv_ov_done_push(struct msm_fb_data_type *mfd,
 	mdp4_set_perf_level();
 }
 
+void mdp4_overlay_dtv_wait_for_ov(struct msm_fb_data_type *mfd) // case 00627432  QCT HDMI patch
+{
+	mdp4_overlay_dtv_wait4_ov_done(mfd);
+	mdp4_set_perf_level();
+}
 void mdp4_external_vsync_dtv()
 {
 	complete(&dtv_pipe->comp);
@@ -378,7 +386,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	struct fb_info *fbi = mfd->fbi;
 	uint8 *buf;
 	int bpp;
-	unsigned long flag;
+	//unsigned long flag;  // case 00627432  QCT HDMI subtitle patch
 	struct mdp4_overlay_pipe *pipe;
 
 	if (!mfd->panel_power_on)
@@ -397,6 +405,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	mdp4_overlay_rgb_setup(pipe);
 	mdp4_overlay_reg_flush(pipe, 1); /* rgb2 and mixer1 */
 
+#if 0 // case 00627432  QCT HDMI subtitle patch
 	/* enable irq */
 	spin_lock_irqsave(&mdp_spin_lock, flag);
 	mdp_enable_irq(MDP_OVERLAY1_TERM);
@@ -408,7 +417,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
 	wait_for_completion_killable(&dtv_pipe->comp);
 	mdp_disable_irq(MDP_OVERLAY1_TERM);
-
+#endif // case 00627432  QCT HDMI subtitle patch
 	mdp4_stat.kickoff_dtv++;
 	mutex_unlock(&mfd->dma->ov_mutex);
 }

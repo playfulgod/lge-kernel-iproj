@@ -200,6 +200,14 @@ enum {
 #define CHANNEL_ADC_1250_REF	0x10
 #define CHANNEL_ADC_325_REF	0x11
 
+#ifdef CONFIG_LGE_PMIC8058_MPP
+#define CHANNEL_ADC_PCB_REVISION 0x20
+#if !defined (CONFIG_LGE_MACH_BOARD_REVB)
+#define CHANNEL_ADC_ACC                 0x21
+#define CHANNEL_ADC_WIRELESS_CURRENT    0x22
+#endif
+#endif
+
 enum {
 	CALIB_STARTED,
 	CALIB_NOT_REQUIRED = 0xffffffff,

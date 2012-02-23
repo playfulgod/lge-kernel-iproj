@@ -115,3 +115,7 @@ obj-$(CONFIG_VLYNQ)		+= vlynq/
 obj-$(CONFIG_STAGING)		+= staging/
 obj-y				+= platform/
 obj-y				+= ieee802154/
+# LGE_CHANGE_BROADCAST [inb612@lge.com] 2009.12.01 LGE_Domestic
+obj-$(CONFIG_LGE_BROADCAST)	+= broadcast/
+#obj-y	+= broadcast/
+# LGE_CHANGE BROADCAST

@@ -2993,7 +2993,12 @@ static void vfe31_process_output_path_irq_2(uint32_t ping_pong)
 			"PP_status = 0x%x\n", ping_pong);
 		return;
 	}
-	if (vfe31_ctrl->recording_state == VFE_REC_STATE_STOP_REQUESTED) {
+	
+//Start LGE_BSP_CAMERA : Fix recording state machine bug - jonghwan.ko@lge.com
+	if ((vfe31_ctrl->recording_state == VFE_REC_STATE_STOP_REQUESTED)
+		|| (vfe31_ctrl->recording_state == VFE_REC_STATE_STOPPED)) {
+//End  LGE_BSP_CAMERA : Fix recording state machine bug - jonghwan.ko@lge.com
+		
 		vfe31_ctrl->outpath.out2.frame_drop_cnt++;
 		pr_warning("path_irq_2 - recording stopped\n");
 		return;

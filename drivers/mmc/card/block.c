@@ -232,9 +232,12 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 		cmd.arg = card->rca << 16;
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+/* byongdoo.oh@lge.com remove error message at pulling sd card without unmount */
+#ifdef LGE_REMOVE_ERROR
 	if (err)
 		printk(KERN_ERR "%s: error %d sending status comand",
 		       req->rq_disk->disk_name, err);
+#endif
 	return cmd.resp[0];
 }
 
@@ -373,11 +376,18 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		 * until later as we need to wait for the card to leave
 		 * programming mode even when things go wrong.
 		 */
+// don't redo I/O when nomedium error
+		if (brq.cmd.error == -ENOMEDIUM) {
+			goto cmd_err;
+		}
 		if (brq.cmd.error || brq.data.error || brq.stop.error) {
 			if (brq.data.blocks > 1 && rq_data_dir(req) == READ) {
 				/* Redo read one sector at a time */
+/* byongdoo.oh@lge.com remove error message at pulling sd card without unmount */
+#ifdef LGE_REMOVE_ERROR
 				printk(KERN_WARNING "%s: retrying using single "
 				       "block read\n", req->rq_disk->disk_name);
+#endif
 				disable_multi = 1;
 				continue;
 			}
@@ -387,30 +397,40 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		}
 
 		if (brq.cmd.error) {
+/* byongdoo.oh@lge.com remove error message at pulling sd card without unmount */
+#ifdef LGE_REMOVE_ERROR
 			printk(KERN_ERR "%s: error %d sending read/write "
 			       "command, response %#x, card status %#x\n",
 			       req->rq_disk->disk_name, brq.cmd.error,
 			       brq.cmd.resp[0], status);
+#else
+                        ;
+#endif
 		}
 
 		if (brq.data.error) {
 			if (brq.data.error == -ETIMEDOUT && brq.mrq.stop)
 				/* 'Stop' response contains card status */
 				status = brq.mrq.stop->resp[0];
+/* byongdoo.oh@lge.com remove error message at pulling sd card without unmount */
+#ifdef LGE_REMOVE_ERROR
 			printk(KERN_ERR "%s: error %d transferring data,"
 			       " sector %u, nr %u, card status %#x\n",
 			       req->rq_disk->disk_name, brq.data.error,
 			       (unsigned)blk_rq_pos(req),
 			       (unsigned)blk_rq_sectors(req), status);
+#endif
 		}
 
+/* byongdoo.oh@lge.com remove error message at pulling sd card without unmount */
+#ifdef LGE_REMOVE_ERROR
 		if (brq.stop.error) {
 			printk(KERN_ERR "%s: error %d sending stop command, "
 			       "response %#x, card status %#x\n",
 			       req->rq_disk->disk_name, brq.stop.error,
 			       brq.stop.resp[0], status);
 		}
-
+#endif
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
 			do {
 				int err;
@@ -420,8 +440,11 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 				err = mmc_wait_for_cmd(card->host, &cmd, 5);
 				if (err) {
+/* byongdoo.oh@lge.com remove error message at pulling sd card without unmount */
+#ifdef LGE_REMOVE_ERROR
 					printk(KERN_ERR "%s: error %d requesting status\n",
 					       req->rq_disk->disk_name, err);
+#endif
 					goto cmd_err;
 				}
 				/*
@@ -437,7 +460,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				printk(KERN_ERR "%s: status = %08x\n",
 				       req->rq_disk->disk_name, cmd.resp[0]);
 			if (mmc_decode_status(cmd.resp))
-				goto cmd_err;
+                          goto cmd_err;
 #endif
 		}
 

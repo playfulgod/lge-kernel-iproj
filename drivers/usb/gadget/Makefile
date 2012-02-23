@@ -76,6 +76,7 @@ obj-$(CONFIG_USB_ANDROID_ADB)	+= f_adb.o
 obj-$(CONFIG_USB_ANDROID_MASS_STORAGE)	+= f_mass_storage.o
 obj-$(CONFIG_USB_ANDROID_MTP)	+= f_mtp.o
 obj-$(CONFIG_USB_ANDROID_RNDIS)	+= f_rndis.o u_ether.o
+obj-$(CONFIG_LGE_USB_GADGET_DRIVER)	+= f_ecm.o u_ether.o
 
 # MSM specific
 obj-$(CONFIG_USB_ANDROID_DIAG)	+= f_diag.o
@@ -83,3 +84,5 @@ obj-$(CONFIG_USB_ANDROID_RMNET)	+= f_rmnet.o
 obj-$(CONFIG_USB_ANDROID_RMNET_SDIO)   += f_rmnet_sdio.o
 obj-$(CONFIG_USB_ANDROID_RMNET_SMD_SDIO)   += f_rmnet_smd_sdio.o
 
+##LG_FW
+# obj-$(CONFIG_LGE_USB_GADGET_DRIVER) += u_lgeusb.o

@@ -1,0 +1,51 @@
+#platform.team@lge.com	2011.01
+
+config MACH_LGE_I_BOARD
+       bool "LGE_I_BOARD"
+       depends on ARCH_MSM8X60
+       default y
+       ---help---
+         LGE I-project. 
+
+choice
+	prompt "LGE board type"
+	default MACH_LGE_I_BOARD_ATNT 
+
+config MACH_LGE_I_BOARD_VZW
+       bool "LGE_I_BOARD_VZW"
+       depends on MACH_LGE_I_BOARD
+       ---help---
+         LGE I-project for VZW. 
+
+config MACH_LGE_I_BOARD_ATNT
+       bool "LGE_I_BOARD_ATNT"
+       depends on MACH_LGE_I_BOARD
+       ---help---
+         LGE I-project for AT&T.
+
+config MACH_LGE_I_BOARD_SKT
+       bool "LGE_I_BOARD_SKT"
+       depends on MACH_LGE_I_BOARD
+       ---help---
+         LGE I-project for SKT.         
+
+config MACH_LGE_I_BOARD_LGU
+       bool "LGE_I_BOARD_LGU"
+       depends on MACH_LGE_I_BOARD
+       ---help---
+         LGE I-project for LGU.
+
+config MACH_LGE_I_BOARD_DCM
+       bool "LGE_I_BOARD_DCM"
+       depends on MACH_LGE_I_BOARD
+       ---help---
+         LGE I-project for DoCoMo.         
+
+config MACH_LGE_HDK_8x60
+       bool "LGE_I_BOARD_HDK_8x60"
+       depends on MACH_LGE_I_BOARD
+       ---help---
+         LGE I-project for HDK_8x60.
+
+endchoice
+ 

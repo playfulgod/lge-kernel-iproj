@@ -174,6 +174,7 @@ static u32 smc(u32 cmd_addr)
 	register u32 r2 asm("r2") = cmd_addr;
 	do {
 		asm volatile(
+                        ".arch_extension sec\n"
 			__asmeq("%0", "r0")
 			__asmeq("%1", "r0")
 			__asmeq("%2", "r1")
@@ -287,6 +288,7 @@ u32 scm_get_version(void)
 	r1 = (u32)&context_id;
 	do {
 		asm volatile(
+                        ".arch_extension sec\n"
 			__asmeq("%0", "r0")
 			__asmeq("%1", "r1")
 			__asmeq("%2", "r0")

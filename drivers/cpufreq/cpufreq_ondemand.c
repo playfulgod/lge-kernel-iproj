@@ -767,7 +767,23 @@ static DECLARE_WORK(dbs_refresh_work, dbs_refresh_callback);
 static void dbs_input_event(struct input_handle *handle, unsigned int type,
 		unsigned int code, int value)
 {
+#ifdef CONFIG_LGE_PM_CURRENT_CONSUMPTION_FIX
+#ifdef CONFIG_LGE_SENSOR_FUSION
+	if(!strcmp((char*)(handle->dev->name), "accelerometer") || !strcmp((char*)(handle->dev->name), "proximity") || !strcmp((char*)(handle->dev->name), "magnetic_field") || !strcmp((char*)(handle->dev->name), "synaptics_ts"))
+#else
+	if(!strcmp((char*)(handle->dev->name), "gesture_flip") || !strcmp((char*)(handle->dev->name), "gesture_tap") || !strcmp((char*)(handle->dev->name), "accelerometer") || !strcmp((char*)(handle->dev->name), "proximity") || !strcmp((char*)(handle->dev->name), "magnetic_field"))
+#endif
+    {
+        //printk(KERN_INFO "Not Bumping up CPU for %s", handle->dev->name);
+        return; 
+    }
+    else
+    {      
+        schedule_work(&dbs_refresh_work);
+    }
+#else    
 	schedule_work_on(0, &dbs_refresh_work);
+#endif
 }
 
 static int dbs_input_connect(struct input_handler *handler,

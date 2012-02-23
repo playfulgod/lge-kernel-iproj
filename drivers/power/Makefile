@@ -43,3 +43,6 @@ obj-$(CONFIG_BATTERY_QCIBAT)	+= qci_battery.o
 obj-$(CONFIG_BATTERY_BQ27520)	+= bq27520_fuelgauger.o
 obj-$(CONFIG_BATTERY_BQ27541)	+= bq27541_fuelgauger.o
 obj-$(CONFIG_SMB137B_CHARGER)   += smb137b.o
+obj-$(CONFIG_LGE_SWITCHING_CHARGER_MAX8971) += lge_max8971-charger.o
+obj-$(CONFIG_LGE_SWITCHING_CHARGER_BQ24160_DOCOMO_ONLY) += bq24160-charger.o
+obj-$(CONFIG_LGE_SWITCHING_CHARGER_BQ24160_DOCOMO_ONLY) += lge_dcm_pmic8058-charger.o

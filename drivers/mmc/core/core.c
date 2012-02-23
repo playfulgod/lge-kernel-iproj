@@ -67,6 +67,11 @@ MODULE_PARM_DESC(
 	removable,
 	"MMC/SD cards are removable and may be removed during suspend");
 
+
+#if 1//for bakcup of SD control parameter by KSM
+struct mmc_ios ios_backup;
+#endif
+
 /*
  * Internal function. Schedule delayed work in the MMC work queue.
  */
@@ -328,7 +333,11 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * The limit is really 250 ms, but that is
 			 * insufficient for some crappy cards.
 			 */
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+			limit_us = 500000;
+#else
 			limit_us = 300000;
+#endif
 		else
 			limit_us = 100000;
 
@@ -923,7 +932,11 @@ void mmc_set_timing(struct mmc_host *host, unsigned int timing)
  * If a host does all the power sequencing itself, ignore the
  * initial MMC_POWER_UP stage.
  */
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+void mmc_power_up(struct mmc_host *host)
+#else
 static void mmc_power_up(struct mmc_host *host)
+#endif
 {
 	int bit;
 
@@ -963,8 +976,15 @@ static void mmc_power_up(struct mmc_host *host)
 	 */
 	mmc_delay(10);
 }
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+EXPORT_SYMBOL(mmc_power_up);
+#endif
 
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+void mmc_power_off(struct mmc_host *host)
+#else
 static void mmc_power_off(struct mmc_host *host)
+#endif
 {
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
@@ -977,6 +997,9 @@ static void mmc_power_off(struct mmc_host *host)
 	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
 }
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+EXPORT_SYMBOL(mmc_power_off);
+#endif
 
 /*
  * Cleanup when the last reference to the bus operator is dropped.
@@ -1380,11 +1403,18 @@ int mmc_suspend_host(struct mmc_host *host)
 	}
 	mmc_bus_put(host);
 
+	if(!strncmp(mmc_hostname(host),"mmc2",4))
+	{
+		memcpy(&ios_backup,&host->ios,sizeof(struct mmc_ios));
+		printk("\n(IOS backup)\n%s: clock %uHz busmode %u powermode %u cs %u Vdd %u width %u timing %u\n",mmc_hostname(host), ios_backup.clock, ios_backup.bus_mode,ios_backup.power_mode, ios_backup.chip_select, ios_backup.vdd,ios_backup.bus_width, ios_backup.timing);
+	}
 	if (!err && !(host->pm_flags & MMC_PM_KEEP_POWER))
 		mmc_power_off(host);
 
 	return err;
 }
+
+
 
 EXPORT_SYMBOL(mmc_suspend_host);
 
@@ -1417,10 +1447,17 @@ int mmc_resume_host(struct mmc_host *host)
 			err = 0;
 		}
 	}
+	if(!strncmp(mmc_hostname(host),"mmc2",4))
+	{
+		memcpy(&host->ios,&ios_backup,sizeof(struct mmc_ios));
+		mmc_set_ios(host);
+		printk("\n(IOS restore)\n%s: clock %uHz busmode %u powermode %u cs %u Vdd %u  width %u timing %u\n",mmc_hostname(host), ios_backup.clock, ios_backup.bus_mode,ios_backup.power_mode, ios_backup.chip_select, ios_backup.vdd,ios_backup.bus_width, ios_backup.timing);
+	}
 	mmc_bus_put(host);
 
 	return err;
 }
+
 EXPORT_SYMBOL(mmc_resume_host);
 
 /* Do the card removal on suspend if card is assumed removeable

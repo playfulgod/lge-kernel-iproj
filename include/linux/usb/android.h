@@ -38,7 +38,10 @@ struct android_usb_platform_data {
 
 	char *product_name;
 	char *manufacturer_name;
-
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
+	/* add usb serial number field */
+	char *serial_number;
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
 	/* number of LUNS for mass storage function */
 	int nluns;
 	int self_powered;

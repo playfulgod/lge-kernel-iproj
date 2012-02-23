@@ -1371,9 +1371,20 @@ int input_flush_device(struct input_handle* handle, struct file* file);
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
+extern int LGF_TestModeGetDisableInputDevices(void);
+
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
 {
-	input_event(dev, EV_KEY, code, !!value);
+	if(LGF_TestModeGetDisableInputDevices())
+		;
+	else
+	{
+	#if 1 // for key cancel
+		input_event(dev, EV_KEY, code, value);
+	#else
+		input_event(dev, EV_KEY, code, !!value);
+	#endif
+	}
 }
 
 static inline void input_report_rel(struct input_dev *dev, unsigned int code, int value)
@@ -1383,7 +1394,10 @@ static inline void input_report_rel(struct input_dev *dev, unsigned int code, in
 
 static inline void input_report_abs(struct input_dev *dev, unsigned int code, int value)
 {
-	input_event(dev, EV_ABS, code, value);
+	if(LGF_TestModeGetDisableInputDevices())
+		;
+	else
+		input_event(dev, EV_ABS, code, value);
 }
 
 static inline void input_report_ff_status(struct input_dev *dev, unsigned int code, int value)
@@ -1398,12 +1412,18 @@ static inline void input_report_switch(struct input_dev *dev, unsigned int code,
 
 static inline void input_sync(struct input_dev *dev)
 {
-	input_event(dev, EV_SYN, SYN_REPORT, 0);
+	if(LGF_TestModeGetDisableInputDevices())
+		;
+	else
+		input_event(dev, EV_SYN, SYN_REPORT, 0);
 }
 
 static inline void input_mt_sync(struct input_dev *dev)
 {
-	input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
+	if(LGF_TestModeGetDisableInputDevices())
+		;
+	else
+		input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
 }
 
 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);

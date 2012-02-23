@@ -61,8 +61,14 @@ struct xoadc_conv_state {
 #define XOADC_MPP_3		0x2
 #define XOADC_MPP_4             0X3
 #define XOADC_MPP_5             0x4
+#ifdef CONFIG_LGE_PMIC8058_MPP
+#define XOADC_MPP_6             0x5
+#endif
 #define XOADC_MPP_7             0x6
 #define XOADC_MPP_8             0x7
+#ifdef CONFIG_LGE_PMIC8058_MPP
+#define XOADC_MPP_9		0x8 /* this is not configurable. XO_THERM_ADC  */
+#endif
 #define XOADC_MPP_10		0X9
 
 #define XOADC_PMIC_0		0x0

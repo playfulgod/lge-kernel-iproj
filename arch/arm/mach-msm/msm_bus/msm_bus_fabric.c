@@ -313,26 +313,51 @@ static int msm_bus_fabric_rpm_commit(struct msm_bus_fabric_device *fabdev,
  */
 static int msm_bus_fabric_update_clks(struct msm_bus_fabric_device *fabdev,
 		struct msm_bus_inode_info *slave, int index,
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 		unsigned long curr_clk_hz, unsigned long req_clk_hz,
 		unsigned long bwsum_hz, int clk_flag, int context,
+#else
+		unsigned long curr_clk, unsigned long req_clk,
+		unsigned long bwsum, int clk_flag, int context,
+#endif
 		unsigned int cl_active_flag)
 {
 	int i, status = 0;
 	unsigned long max_pclk = 0;
 	unsigned long *pclk = NULL;
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifndef CONFIG_LGE_I_DISP_UNDERRUN
+	unsigned long pclk_freq;
+	unsigned long max_pclk_freq;
+#endif
 	struct msm_bus_fabric *fabric = to_msm_bus_fabric(fabdev);
 	struct clk *select_clk;
 
 	/* Maximum for this gateway */
 	for (i = 0; i <= slave->num_pnodes; i++) {
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 		if (i == index && (req_clk_hz < curr_clk_hz))
+#else
+		if (i == index && (req_clk < curr_clk))
+#endif
 			continue;
 		SELECT_CLK_VAL(context, slave->pnode[i]);
 		max_pclk = max(max_pclk, *slave->pnode[i].sel_clk);
 	}
 
 	*slave->link_info.sel_clk =
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 		max(max_pclk, max(bwsum_hz, req_clk_hz));
+#else
+		max(max_pclk, max(MSM_BUS_GET_BW_BYTES(bwsum), req_clk));
+#endif
 	/* Is this gateway or slave? */
 	if (clk_flag && (!fabric->ahb)) {
 		struct msm_bus_fabnodeinfo *fabgw = NULL;
@@ -347,7 +372,22 @@ static int msm_bus_fabric_update_clks(struct msm_bus_fabric_device *fabdev,
 		}
 		MSM_FAB_DBG("max_pclk from gateways: %lu\n", max_pclk);
 
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 		/* Maximum of all slave clocks. */
+#else
+		/*
+		 * Maximum of all slave clocks.
+		 *
+		 * The clock values are maintained as bandwidth but the bus
+		 * width needs to be taken into consideration.  Therefore
+		 * convert to frequency values to find the max and then
+		 * convert back to bandwidth
+		 */
+		max_pclk_freq =
+			BW_TO_CLK_FREQ_HZ(slave->node_info->buswidth, max_pclk);
+#endif
 
 		for (i = 0; i < fabric->pdata->len; i++) {
 			if (fabric->pdata->info[i].gateway ||
@@ -358,9 +398,24 @@ static int msm_bus_fabric_update_clks(struct msm_bus_fabric_device *fabdev,
 			if (!info)
 				continue;
 			SELECT_CLK_VAL(context, info->link_info);
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 			max_pclk = max(max_pclk, *info->link_info.sel_clk);
+#else
+			max_pclk_freq = max(max_pclk_freq,
+				BW_TO_CLK_FREQ_HZ(info->node_info->buswidth,
+						*info->link_info.sel_clk));
+#endif
 		}
 
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifndef CONFIG_LGE_I_DISP_UNDERRUN
+		/* Convert back to bandwidth */
+		max_pclk = FAB_MAX_BW_BYTES(slave->node_info->buswidth,
+						max_pclk_freq);
+#endif
 
 		MSM_FAB_DBG("max_pclk from slaves & gws: %lu\n", max_pclk);
 		SELECT_CLK_VAL(context, fabric->info.link_info);
@@ -370,8 +425,23 @@ static int msm_bus_fabric_update_clks(struct msm_bus_fabric_device *fabdev,
 		pclk = slave->link_info.sel_clk;
 	}
 
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifndef CONFIG_LGE_I_DISP_UNDERRUN
+	if (!slave->node_info->buswidth) {
+		slave->node_info->buswidth = 8;
+		MSM_FAB_DBG("Invalid width!, using default width 8\n");
+	}
+#endif
 
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 	*pclk = max(max_pclk, max(bwsum_hz, req_clk_hz));
+#else
+	*pclk = max(max_pclk, max(MSM_BUS_GET_BW_BYTES(bwsum), req_clk));
+	pclk_freq = BW_TO_CLK_FREQ_HZ(slave->node_info->buswidth, *pclk);
+#endif
 
 	if (!fabric->pdata->rpm_enabled)
 		goto skip_set_clks;
@@ -385,19 +455,47 @@ static int msm_bus_fabric_update_clks(struct msm_bus_fabric_device *fabdev,
 		 * is selected.
 		 */
 		if (select_clk && (!(context ^ cl_active_flag))) {
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 			MSM_FAB_DBG("clks: id: %d set-clk: %lu bwsum_hz:%lu\n",
 			fabric->fabdev.id, *pclk, bwsum_hz);
 			status = clk_set_min_rate(select_clk, *pclk);
+#else
+			MSM_FAB_DBG("clks: id: %d set-clk: %lu bwsum:%lu\n",
+			fabric->fabdev.id, pclk_freq, bwsum);
+			status = clk_set_min_rate(select_clk, pclk_freq);
+#endif
 		}
 	} else {
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 		MSM_FAB_DBG("AXI_clks: id: %d set-clk: %lu  bwsum_hz:%lu\n" ,
 			slave->node_info->priv_id, *pclk, bwsum_hz);
+#else
+		MSM_FAB_DBG("AXI_clks: id: %d set-clk: %lu  bwsum:%lu\n" ,
+			slave->node_info->priv_id, pclk_freq, bwsum);
+#endif
 		select_clk = SELECT_CLK_PTR(context, slave);
 		if (select_clk && (!(context ^ cl_active_flag))) {
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 			status = clk_set_min_rate(select_clk, *pclk);
+#else
+			status = clk_set_min_rate(select_clk, pclk_freq);
+#endif
 			MSM_BUS_DBG("Trying to set clk, node id: %d val: %lu "
+/* 11.03.17 jaeseong.gim 
+	prevent under-run */
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
 				"status %d\n", slave->node_info->priv_id, *pclk,
 				status);
+#else
+				"status %d\n", slave->node_info->priv_id,
+				pclk_freq, status);
+#endif
 		}
 		if (!status && slave->memclk &&
 			(!(context ^ cl_active_flag)))

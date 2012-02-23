@@ -116,6 +116,17 @@ static struct usb_descriptor_header *hs_adb_descs[] = {
 	NULL,
 };
 
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+extern u16 android_get_product_id(void);
+#endif
+
+#ifdef CONFIG_LGE_USB_AUTORUN
+extern const u16 lg_autorun_pid;
+#endif
+#ifdef CONFIG_LGE_USB_FACTORY
+extern const u16 lg_factory_pid;
+#endif
 
 /* temporary variable used between adb_open() and adb_gadget_bind() */
 static struct adb_dev *_adb_dev;
@@ -448,6 +459,35 @@ static struct miscdevice adb_device = {
 
 static int adb_enable_open(struct inode *ip, struct file *fp)
 {
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+    u16 pid;
+
+    pid = android_get_product_id();
+
+#ifdef CONFIG_LGE_USB_FACTORY
+    if (pid == lg_factory_pid)
+    {
+		pr_info("%s: adb enabling on factory mode, Ignore it\n", __func__);
+        return -1;
+    }
+#endif
+
+#ifdef CONFIG_LGE_USB_AUTORUN
+#if defined(CONFIG_LGE_USB_AUTORUN_CGO)
+	if ((pid == lg_autorun_pid) || (pid == lg_charge_only_pid)) {
+#else
+    if (pid == lg_autorun_pid) {
+#endif
+		pr_info("%s: adb enabling on Autorun mode, Ignore it\n",
+				__func__);
+		/* intended error trigger */
+		return -1;
+	}
+#endif
+
+#endif
+//seunghun.kim : for LG_USB_DRIVER 2011.03.25
 	if (atomic_inc_return(&adb_enable_excl) != 1) {
 		atomic_dec(&adb_enable_excl);
 		return -EBUSY;
@@ -461,7 +501,23 @@ static int adb_enable_open(struct inode *ip, struct file *fp)
 
 static int adb_enable_release(struct inode *ip, struct file *fp)
 {
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	u16 pid;
+#endif
 	pr_debug("%s: Disabling adb\n", __func__);
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	pid = android_get_product_id();
+
+#ifdef CONFIG_LGE_USB_AUTORUN
+	if (pid == lg_autorun_pid) {
+		pr_info("%s: adb enabling on Autorun mode, Ignore it\n",
+				__func__);
+		/* intended error trigger */
+		return -1;
+	}
+#endif
+
+#endif
 	android_enable_function(&_adb_dev->function, 0);
 	atomic_dec(&adb_enable_excl);
 	return 0;
@@ -651,7 +707,15 @@ static struct android_usb_function adb_function = {
 
 static int __init init(void)
 {
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	//extern int adb_init;
+#endif
 	pr_debug("f_adb init\n");
+	printk(KERN_INFO "seunghun.kim : f_adb init\n");
+
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	//adb_init = 1; 
+#endif
 	android_register_function(&adb_function);
 	return 0;
 }

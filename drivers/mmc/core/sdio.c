@@ -473,6 +473,15 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 {
 	int i, err = 0;
 
+	// bill.jung@lge.com - Don't process
+	/*
+	if (host->index == 3)
+	{
+		printk(KERN_ERR "mmc_sdio_suspend() - host->index=3 ignore this logic.");
+		return 0;
+	}
+	*/
+
 	for (i = 0; i < host->card->sdio_funcs; i++) {
 		struct sdio_func *func = host->card->sdio_func[i];
 		if (func && sdio_func_present(func) && func->dev.driver) {
@@ -509,6 +518,15 @@ static int mmc_sdio_resume(struct mmc_host *host)
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
+
+	// bill.jung@lge.com - Don't process
+	/*
+	if (host->index == 3)
+	{
+		printk(KERN_ERR "mmc_sdio_suspend() - host->index=3 ignore this logic.");
+		return 0;
+	}
+	*/
 
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);

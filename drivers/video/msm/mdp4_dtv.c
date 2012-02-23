@@ -241,7 +241,8 @@ static int dtv_probe(struct platform_device *pdev)
 	 * get/set panel specific fb info
 	 */
 	mfd->panel_info = pdata->panel_info;
-	mfd->fb_imgType = MDP_RGB_565;
+	//mfd->fb_imgType = MDP_RGB_565;
+	mfd->fb_imgType = MDP_ARGB_8888;  // For alpha blending
 
 	fbi = mfd->fbi;
 	fbi->var.pixclock = mfd->panel_info.clk_rate;

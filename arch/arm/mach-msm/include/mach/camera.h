@@ -402,12 +402,17 @@ static inline int msm_strobe_flash_init(
 {
 	return -ENOTSUPP;
 }
+#ifdef CONFIG_LGE_FLASH_LM3559 //jisun.shin@lge.com
+int lge_flash_ctrl(struct msm_camera_sensor_info *sdata,
+			struct flash_ctrl_data *flash_info);
+#else
 static inline int msm_flash_ctrl(
 		struct msm_camera_sensor_info *sdata,
 		struct flash_ctrl_data *flash_info)
 {
 	return -ENOTSUPP;
 }
+#endif
 #endif
 
 

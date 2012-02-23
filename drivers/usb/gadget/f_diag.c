@@ -124,12 +124,22 @@ struct diag_context {
 	struct usb_composite_dev *cdev;
 	struct usb_diag_platform_data *pdata;
 	struct usb_diag_ch ch;
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	char *serial_number;
+	unsigned short	product_id;
+#endif
 
 	/* pkt counters */
 	unsigned long dpkts_tolaptop;
 	unsigned long dpkts_tomodem;
 	unsigned dpkts_tolaptop_pending;
 };
+
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+#define MAX_SERIAL_LEN 256
+extern char serial_number[MAX_SERIAL_LEN];
+static struct diag_context _context;
+#endif
 
 static inline struct diag_context *func_to_dev(struct usb_function *f)
 {
@@ -505,7 +515,8 @@ static int diag_function_set_alt(struct usb_function *f,
 	dev->in_desc = ep_choose(cdev->gadget,
 			&hs_bulk_in_desc, &fs_bulk_in_desc);
 	dev->out_desc = ep_choose(cdev->gadget,
-			&hs_bulk_out_desc, &fs_bulk_in_desc);
+			&hs_bulk_out_desc, &fs_bulk_out_desc);
+//			&hs_bulk_out_desc, &fs_bulk_in_desc);	// daniel.kang@lge.com fix bug in case of full speed usb
 	dev->in->driver_data = dev;
 	rc = usb_ep_enable(dev->in, dev->in_desc);
 	if (rc) {
@@ -625,6 +636,11 @@ int diag_function_add(struct usb_configuration *c)
 	dev->function.unbind = diag_function_unbind;
 	dev->function.set_alt = diag_function_set_alt;
 	dev->function.disable = diag_function_disable;
+
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	dev->serial_number = serial_number;
+#endif
+
 	spin_lock_init(&dev->lock);
 	INIT_LIST_HEAD(&dev->read_pool);
 	INIT_LIST_HEAD(&dev->write_pool);
@@ -639,6 +655,14 @@ int diag_function_add(struct usb_configuration *c)
 	return ret;
 }
 
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+void diag_set_serial_number(char *serial_number)
+{
+  struct diag_context *dev = &_context;
+
+  dev->serial_number = serial_number;
+}
+#endif
 
 #if defined(CONFIG_DEBUG_FS)
 static char debug_buffer[PAGE_SIZE];

@@ -1515,6 +1515,9 @@ static struct android_usb_function rmnet_function = {
 
 static int __init rmnet_init(void)
 {
+//seunghun.kim
+		printk(KERN_INFO "seunghun.kim : f_rmnet_sdio init\n");
+//seunghun.kim
        android_register_function(&rmnet_function);
        return 0;
 }

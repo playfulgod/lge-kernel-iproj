@@ -279,6 +279,18 @@ struct mvm_set_voice_timing_cmd {
 #define VSS_ISTREAM_CMD_STOP_PLAYBACK			0x00011239
 /* Stop the in-call music delivery on the Tx voice path. */
 
+//~~ [START] 2011.06.09 hj74.kim mvs loop back qualqumm patch
+#define VSS_NETWORK_ID_CDMA_NB				0x00010021
+#define VSS_NETWORK_ID_CDMA_WB				0x00010022
+#define VSS_NETWORK_ID_CDMA_WV				0x00011100
+#define VSS_NETWORK_ID_GSM_NB				0x00010023
+#define VSS_NETWORK_ID_GSM_WB				0x00010024
+#define VSS_NETWORK_ID_GSM_WV				0x00011101
+#define VSS_NETWORK_ID_WCDMA_NB				0x00010025
+#define VSS_NETWORK_ID_WCDMA_WB				0x00010026
+#define VSS_NETWORK_ID_WCDMA_WV				0x00011102
+//~~ [END] hj74.kim mvs loop back qualqumm patch
+
 struct vss_istream_cmd_create_passive_control_session_t {
 	char name[SESSION_NAME_LEN];
 	/**<

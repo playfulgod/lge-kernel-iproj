@@ -341,7 +341,15 @@ static int config_buf(struct usb_configuration *config,
 		else
 			descriptors = f->descriptors;
 		if (f->disabled || !descriptors || descriptors[0] == NULL)
+//seunghun.kim
+		{
+//			pr_err("f->name : %s, disabled : %d\n", f->name, f->disabled);
+
+//seunghun.kim
 			continue;
+//seunghun.kim
+		}
+//seunghun.kim
 		status = usb_descriptor_fillbuf(next, len,
 			(const struct usb_descriptor_header **) descriptors);
 		if (status < 0)

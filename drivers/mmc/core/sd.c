@@ -23,6 +23,10 @@
 #include "mmc_ops.h"
 #include "sd_ops.h"
 
+unsigned int g_sd_power_dircect_ctrl = 0;
+EXPORT_SYMBOL(g_sd_power_dircect_ctrl);
+
+
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
 	0,		0,		0,		0
@@ -607,6 +611,11 @@ static void mmc_sd_detect(struct mmc_host *host)
  * Suspend callback from host.
  */
 static int mmc_sd_suspend(struct mmc_host *host)
+#if 1
+{
+	return 0;
+}
+#else
 {
 	BUG_ON(!host);
 	BUG_ON(!host->card);
@@ -619,7 +628,7 @@ static int mmc_sd_suspend(struct mmc_host *host)
 
 	return 0;
 }
-
+#endif
 /*
  * Resume callback from host.
  *
@@ -627,6 +636,11 @@ static int mmc_sd_suspend(struct mmc_host *host)
  * and, if so, restore all state to it.
  */
 static int mmc_sd_resume(struct mmc_host *host)
+#if 1
+{
+	return 0;
+}
+#else
 {
 	int err;
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
@@ -643,8 +657,27 @@ static int mmc_sd_resume(struct mmc_host *host)
 		err = mmc_sd_init_card(host, host->ocr, host->card);
 
 		if (err) {
+// re-initialize the SD card power to re-establish on resume
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+			if (!strcmp(mmc_hostname(host), "mmc2"))
+			{
+				printk(KERN_ERR "%s: mmc_sd_init_card() failure (err = %d), power off\n",
+					mmc_hostname(host), err);
+				mmc_power_off(host);
+			}
+#endif
 			printk(KERN_ERR "%s: Re-init card rc = %d (retries = %d)\n",
 			       mmc_hostname(host), err, retries);
+#if 1//def CONFIG_LGE_MMC_WORKAROUND
+			if (!strcmp(mmc_hostname(host), "mmc2"))
+			{
+				printk(KERN_ERR "%s: mmc_sd_init_card() failure (err = %d), power up again\n",
+					mmc_hostname(host), err);
+				mmc_power_up(host);
+				mmc_select_voltage(host, host->ocr);
+				BUG_ON(!host->bus_ops->resume);
+			}
+#endif
 			mdelay(5);
 			retries--;
 			continue;
@@ -658,6 +691,7 @@ static int mmc_sd_resume(struct mmc_host *host)
 
 	return err;
 }
+#endif
 
 static void mmc_sd_power_restore(struct mmc_host *host)
 {
@@ -755,7 +789,21 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 	retries = 5;
 	while (retries) {
 		err = mmc_sd_init_card(host, host->ocr, NULL);
-		if (err) {
+		if (err) 
+		{
+			#if 1
+			if (!strcmp(mmc_hostname(host), "mmc2"))
+			{
+				g_sd_power_dircect_ctrl = 1;
+				mmc_power_off(host);
+				mdelay(10);
+				mmc_power_up(host);
+				mmc_select_voltage(host, host->ocr);
+				mdelay(10);
+				g_sd_power_dircect_ctrl = 0;
+				printk("\n(SD initialization) retry count=%d\n",retries);
+			}
+			#endif
 			retries--;
 			continue;
 		}

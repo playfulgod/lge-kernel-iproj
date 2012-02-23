@@ -642,8 +642,12 @@ static int __devexit marimba_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id marimba_id_table[] = {
+#ifdef CONFIG_MARIMBA_CODEC
 	{"marimba", MARIMBA_ID},
+#endif
+#ifdef CONFIG_TIMPANI_CODEC
 	{"timpani", TIMPANI_ID},
+#endif
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, marimba_id_table);
