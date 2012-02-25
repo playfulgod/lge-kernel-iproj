@@ -86,7 +86,7 @@
 #include <mach/msm_bus_board.h>
 #include <mach/socinfo.h>
 #include <linux/i2c/isl9519.h>
-#ifdef CONFIG_USB_ANDROID
+#ifdef CONFIG_USB_G_ANDROID
 #include <linux/usb/android_composite.h>
 #endif
 #include <mach/usb_gadget_fserial.h>
@@ -1357,7 +1357,7 @@ static struct platform_device lg_diag_cmd_device = {
 
 #endif
 
-#ifdef CONFIG_USB_ANDROID
+#ifdef CONFIG_USB_G_ANDROID
 
 #ifdef CONFIG_LGE_USB_GADGET_DRIVER
 static char *usb_functions_all[] = {
@@ -1901,7 +1901,7 @@ static int __init board_serialno_setup(char *serialno)
 	return 1;
 }
 __setup("androidboot.serialno=", board_serialno_setup);
-#endif /* CONFIG_USB_ANDROID */
+#endif /* CONFIG_USB_G_ANDROID */
 
 
 #ifdef CONFIG_I2C_QUP
@@ -4147,7 +4147,7 @@ struct platform_device msm_device_sdio_al = {
 
 static struct platform_device *charm_devices[] __initdata = {
 	&msm_charm_modem,
-#ifdef CONFIG_USB_ANDROID
+#ifdef CONFIG_USB_G_ANDROID
 	&usb_diag_mdm_device,
 #ifdef CONFIG_MSM_SDIO_AL
 	&msm_device_sdio_al,
@@ -4213,7 +4213,7 @@ static struct platform_device *surf_devices[] __initdata = {
 	&msm_device_gadget_peripheral,
 #endif
 
-#ifdef CONFIG_USB_ANDROID
+#ifdef CONFIG_USB_G_ANDROID
 #ifdef CONFIG_USB_ANDROID_MASS_STORAGE
 	&usb_mass_storage_device,
 #endif
@@ -4230,7 +4230,7 @@ static struct platform_device *surf_devices[] __initdata = {
 	&usb_gadget_facm_device,
 #endif
 	&android_usb_device,
-#endif /* CONFIG_USB_ANDROID */
+#endif /* CONFIG_USB_G_ANDROID */
 
 #ifdef CONFIG_BATTERY_MSM
 	&msm_batt_device,
@@ -8974,7 +8974,7 @@ static void __init msm8x60_board_init(struct msm_board_data *board_data)
 	lge_add_eta_event_log_device();
 #endif
 
-#ifdef CONFIG_USB_ANDROID
+#ifdef CONFIG_USB_G_ANDROID
 	if (machine_is_lge_i_board()) {
 #ifdef CONFIG_LGE_USB_GADGET_DRIVER
         /* default product ID, make changes in android_probe func. */
@@ -9000,7 +9000,7 @@ static void __init msm8x60_board_init(struct msm_board_data *board_data)
 				ARRAY_SIZE(charm_usb_products);
 #endif /* CONFIG_LGE_USB_GADGET_DRIVER */
 	}
-#endif /* CONFIG_USB_ANDROID */
+#endif /* CONFIG_USB_G_ANDROID */
 
 	if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) != 1)
 		platform_add_devices(msm_footswitch_devices, msm_num_footswitch_devices);

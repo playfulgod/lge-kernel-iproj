@@ -1371,7 +1371,11 @@ int input_flush_device(struct input_handle* handle, struct file* file);
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
+#ifdef CONFIG_LGE_DIAGTEST
 extern int LGF_TestModeGetDisableInputDevices(void);
+#else
+static inline LGF_TestModeGetDisableInputDevices(void) { return 0; }
+#endif
 
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
 {

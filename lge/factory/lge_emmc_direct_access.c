@@ -200,6 +200,7 @@ static int boot_info_write(const char *val, struct kernel_param *kp)
 module_param_call(boot_info, boot_info_write, param_get_int, &boot_info, S_IWUSR | S_IRUGO);
 //[END] LGE_BOOTCOMPLETE_INFO
 
+#ifdef CONFIG_LGE_SUPPORT_RAPI
 int lg_manual_test_mode = 0;
 int manual_test_mode =0;
 extern int msm_get_manual_test_mode(void);
@@ -214,6 +215,7 @@ static int android_get_manual_test_mode(char *buffer, struct kernel_param *kp)
 }
 
 module_param_call(manual_test_mode, NULL, android_get_manual_test_mode, &manual_test_mode, 0444);
+#endif
 
 int db_integrity_ready = 0;
 module_param(db_integrity_ready, int, S_IWUSR | S_IRUGO);
