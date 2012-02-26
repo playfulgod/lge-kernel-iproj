@@ -1461,6 +1461,7 @@ void ddl_set_default_dec_property(struct ddl_client_context *ddl)
 	decoder->output_order = VCD_DEC_ORDER_DISPLAY;
 	decoder->field_needed_for_prev_ip = 0;
 	decoder->cont_mode = 0;
+	decoder->reconfig_detected = false;
 	ddl_set_default_metadata_flag(ddl);
 	ddl_set_default_decoder_buffer_req(decoder, true);
 }
@@ -1664,8 +1665,11 @@ u32 ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 
 	if (!decoder->codec.codec)
 		return false;
-	min_dpb = ddl_decoder_min_num_dpb(decoder);
 	if (estimate) {
+		if (!decoder->cont_mode)
+			min_dpb = ddl_decoder_min_num_dpb(decoder);
+		else
+			min_dpb = 5;
 		frame_size = &decoder->client_frame_size;
 		output_buf_req = &decoder->client_output_buf_req;
 		input_buf_req = &decoder->client_input_buf_req;
@@ -1682,7 +1686,7 @@ u32 ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 	}
 	memset(output_buf_req, 0,
 		sizeof(struct vcd_buffer_requirement));
-	if ((!estimate && !decoder->idr_only_decoding) || (decoder->cont_mode))
+	if (!estimate && !decoder->idr_only_decoding && !decoder->cont_mode)
 		output_buf_req->actual_count = min_dpb + 4;
 	else
 		output_buf_req->actual_count = min_dpb;
@@ -1703,7 +1707,7 @@ u32 ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 	input_buf_req->min_count = 1;
 	input_buf_req->actual_count = input_buf_req->min_count + 1;
 	input_buf_req->max_count = DDL_MAX_BUFFER_COUNT;
-	input_buf_req->sz = (1024 * 1024);
+	input_buf_req->sz = (1024 * 1024 * 2);
 	input_buf_req->align = DDL_LINEAR_BUFFER_ALIGN_BYTES;
 	decoder->min_input_buf_req = *input_buf_req;
 	return true;

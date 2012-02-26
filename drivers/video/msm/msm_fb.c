@@ -48,15 +48,6 @@
 #include "mdp.h"
 #include "mdp4.h"
 
-//jinho.jang - add msm_rotator_control_status
-//#define MSM_ROTATOR_IOCTL_CHECK
-
-#ifdef MSM_ROTATOR_IOCTL_CHECK
-#include <mach/board_lge.h>
-
-#define NO_ROTATE	1
-static int rotate_result = 0;
-#endif
 #ifdef CONFIG_FB_MSM_LOGO
 #ifdef CONFIG_LGE_I_DISP_BOOTLOGO
 #define INIT_IMAGE_FILE "/bootimages/boot_logo_00000.rle"
@@ -64,11 +55,6 @@ static int rotate_result = 0;
 #define INIT_IMAGE_FILE "/initlogo.rle"
 #endif
 extern int load_565rle_image(char *filename);
-#endif
-
-#if defined(CONFIG_LGE_BROADCAST)||defined(CONFIG_LGE_BROADCAST_DCM)
-extern void mdp4_vg_csc_default_setup(void);
-extern void mdp4_vg_csc_dmb_setup(struct mdp_ccs *p);
 #endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
@@ -126,11 +112,6 @@ static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd);
 static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg);
 static int msm_fb_mmap(struct fb_info *info, struct vm_area_struct * vma);
-/* 11.03.16 jaeseong.gim@lge.com 
-	implement "msm_fb_read" for screenshot such as DDMS" */
-#ifdef CONFIG_LGE_I_DISP_FBREAD
-static ssize_t msm_fb_read(struct fb_info *info, char __user *buf, size_t count, loff_t *ppos);
-#endif
 
 #ifdef MSM_FB_ENABLE_DBGFS
 
@@ -181,9 +162,6 @@ int msm_fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 static int msm_fb_resource_initialized;
 
-static int saved_backlight_level = 0x33;
-static int is_backlight_on = 0;
-
 #ifndef CONFIG_FB_BACKLIGHT
 static int lcd_backlight_registered;
 
@@ -203,15 +181,6 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	if (!bl_lvl && value)
 		bl_lvl = 1;
-	saved_backlight_level = bl_lvl;
-
-	MSM_FB_DEBUG("\n msm_fb_set_bl_brightness : bl level = %d \n", saved_backlight_level);
-
-	if(!mfd->panel_power_on)
-	{
-		MSM_FB_DEBUG("\n msm_fb_set_bl_brightness : panel power is not on : bl level = %d \n", bl_lvl);
-		return;
-	}
 
 	msm_fb_set_backlight(mfd, bl_lvl);
 }
@@ -325,39 +294,6 @@ static void msm_fb_remove_sysfs(struct platform_device *pdev)
 	sysfs_remove_group(&mfd->fbi->dev->kobj, &msm_fb_attr_group);
 }
 
-ssize_t msm_fb_lgit_lcd_show_onoff(struct device *dev,  struct device_attribute *attr, char *buf)
-{
-	printk("%s : strat\n", __func__);
-	return 0;
-}
-
-ssize_t msm_fb_lgit_lcd_store_onoff(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	int onoff;	
-	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)registered_fb[0]->par;
-
-    if(mfd == NULL) return -1;
-
-	sscanf(buf, "%d", &onoff);
-	mfd->op_enable = 1;
-	
-	if(onoff) {
-		msm_fb_blank_sub(FB_BLANK_UNBLANK, mfd->fbi,
-				      mfd->op_enable);		
-		mdelay(100);
-		msm_fb_set_backlight(mfd, saved_backlight_level);
-		printk("%s: buf %s, lcd on : %d\n", __func__,buf, onoff);
-	}
-	else {
-		msm_fb_set_backlight(mfd, 0);
-		msm_fb_blank_sub(FB_BLANK_POWERDOWN, mfd->fbi,
-				      mfd->op_enable);		
-		printk("%s: buf %s, lcd off : %d\n", __func__,buf, onoff);
-	}
-	return 0;
-}
-
-DEVICE_ATTR(msm_fb_lcd_onoff, 0644, msm_fb_lgit_lcd_show_onoff, msm_fb_lgit_lcd_store_onoff);
 static int msm_fb_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -424,9 +360,6 @@ static int msm_fb_probe(struct platform_device *pdev)
 
 	pdev_list[pdev_list_cnt++] = pdev;
 	msm_fb_create_sysfs(pdev);
-
-	err = device_create_file(&pdev->dev, &dev_attr_msm_fb_lcd_onoff);
-	
 	return 0;
 }
 
@@ -672,8 +605,7 @@ static struct platform_driver msm_fb_driver = {
 		   },
 };
 
-    /* 11.08.29 jaeseong.gim@lge.com add framebuffer clear code to suspend routine */
-#if defined(CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_FB_MSM_MDP303)
 static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 {
 	count >>= 2;
@@ -683,7 +615,6 @@ static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-
 static void msmfb_early_suspend(struct early_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
@@ -704,33 +635,13 @@ static void msmfb_early_suspend(struct early_suspend *h)
 		break;
 	}
 #endif
-
-    /* 11.08.29 jaeseong.gim@lge.com add framebuffer clear code to suspend routine
-     * only for mipi video panel */
-#if !defined(CONFIG_FB_MSM_MDP303) && defined(CONFIG_FB_MSM_OVERLAY)
-	struct fb_info *fbi = mfd->fbi;
-    if (mfd->panel_info.type == MIPI_VIDEO_PANEL) {
-        switch (mfd->fbi->var.bits_per_pixel) {
-        case 32:
-            memset32_io((void *)fbi->screen_base, 0xFF000000,
-                                fbi->fix.smem_len);
-            break;
-        default:
-            memset_io(fbi->screen_base, 0x00, fbi->fix.smem_len);
-            break;
-        }
-    }
-#endif
-
 	msm_fb_suspend_sub(mfd);
-
 }
 
 static void msmfb_early_resume(struct early_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						    early_suspend);
-						    
 	msm_fb_resume_sub(mfd);
 }
 #endif
@@ -808,12 +719,11 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
 
-			msm_fb_set_backlight(mfd, 0);
-			is_backlight_on = 0;
 			mfd->op_enable = TRUE;
 		}
 		break;
 	}
+
 #ifdef CONFIG_LGE_I_DISP_OV_MUTEX
 	mutex_unlock(&mfd->dma->ov_mutex);
 #endif
@@ -897,10 +807,6 @@ static int msm_fb_set_lut(struct fb_cmap *cmap, struct fb_info *info)
 	return 0;
 }
 
-int bypass_bpp = 0;
-ulong bypass_addr = 0;
-char __iomem* bypass_src = 0;
-
 /*
  * Custom Framebuffer mmap() function for MSM driver.
  * Differs from standard mmap() function by allowing for customized
@@ -923,11 +829,6 @@ static int msm_fb_mmap(struct fb_info *info, struct vm_area_struct * vma)
 		start = info->fix.mmio_start;
 		len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
 	}
-
-    if (bypass_addr && bypass_bpp == 4){
-        start = bypass_addr;
-        info->var.yoffset = 0;
-    }
 
 	/* Set VM flags. */
 	start &= PAGE_MASK;
@@ -966,13 +867,7 @@ static struct fb_ops msm_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = msm_fb_open,
 	.fb_release = msm_fb_release,
-/* 11.03.16 jaeseong.gim@lge.com 
-	implement "msm_fb_read" for screenshot such as DDMS" */
-#ifdef CONFIG_LGE_I_DISP_FBREAD
-	.fb_read = msm_fb_read,
-#else
 	.fb_read = NULL,
-#endif
 	.fb_write = NULL,
 	.fb_cursor = NULL,
 	.fb_check_var = msm_fb_check_var,	/* vinfo check */
@@ -1031,8 +926,6 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	var->grayscale = 0,	/* No graylevels */
 	var->nonstd = 0,	/* standard pixel format */
 	var->activate = FB_ACTIVATE_VBL,	/* activate it at vsync */
-	/* 11.03.24 jaeseong.gim 
-		hard-coding for LCD physical size */
 #ifdef CONFIG_LGE_I_DISP_PHYSIZE
 	var->height = 99;
 	var->width = 56;
@@ -1179,11 +1072,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	var->yres_virtual = panel_info->yres * mfd->fb_page;
 	var->bits_per_pixel = bpp * 8;	/* FrameBuffer color depth */
 	if (mfd->dest == DISPLAY_LCD) {
-		// jinho.jang - fps define (CTS test) 
-		if(mfd->panel_info.type == MIPI_VIDEO_PANEL)
-			var->reserved[4] = panel_info->mipi.frame_rate;
-		else
-			var->reserved[4] = panel_info->lcd.refx100 / 100;
+		var->reserved[4] = panel_info->lcd.refx100 / 100;
 	} else {
 		var->reserved[4] = panel_info->clk_rate /
 			((panel_info->lcdc.h_back_porch +
@@ -1292,18 +1181,19 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 #ifdef CONFIG_FB_MSM_LOGO
 #ifdef CONFIG_LGE_I_DISP_BOOTLOGO
 	if (mfd->panel_info.type != DTV_PANEL) {
-		 msm_fb_open(mfd->fbi,0);
-		if (!load_565rle_image(INIT_IMAGE_FILE)) ;	/* Flip buffer */
+		msm_fb_open(mfd->fbi,0);
+		if (!load_565rle_image(INIT_IMAGE_FILE)) ;      /* Flip buffer */
 	}
-	
-	msm_fb_set_backlight(mfd, saved_backlight_level);
+
+	msm_fb_set_backlight(mfd, 0x33);
 #endif
+
 	if (!load_565rle_image(INIT_IMAGE_FILE)) ;	/* Flip buffer */
 #endif
 	ret = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-     if (mfd->panel_info.type != DTV_PANEL) { 
+	if (mfd->panel_info.type != DTV_PANEL) {
 		mfd->early_suspend.suspend = msmfb_early_suspend;
 		mfd->early_suspend.resume = msmfb_early_resume;
 		mfd->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 2;
@@ -1565,10 +1455,6 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			     (var->activate == FB_ACTIVATE_VBL));
 	mdp_dma_pan_update(info);
 	up(&msm_fb_pan_sem);
-	if(!is_backlight_on){
-		msm_fb_set_backlight(mfd, saved_backlight_level);
-		is_backlight_on = 1;
-	}
 
 	++mfd->panel_info.frame_count;
 	return 0;
@@ -2578,6 +2464,7 @@ static int msmfb_overlay_set(struct fb_info *info, void __user *p)
 {
 	struct mdp_overlay req;
 	int ret;
+
 	if (copy_from_user(&req, p, sizeof(req)))
 		return -EFAULT;
 
@@ -2611,7 +2498,7 @@ static int msmfb_overlay_unset(struct fb_info *info, unsigned long *argp)
 	return mdp4_overlay_unset(info, ndx);
 }
 
-static int msmfb_overlay_play_wait(struct fb_info *info, unsigned long *argp) // case 00627432  QCT HDMI patch
+static int msmfb_overlay_play_wait(struct fb_info *info, unsigned long *argp)
 {
 	int ret;
 	struct msmfb_overlay_data req;
@@ -2622,14 +2509,15 @@ static int msmfb_overlay_play_wait(struct fb_info *info, unsigned long *argp) //
 
 	ret = copy_from_user(&req, argp, sizeof(req));
 	if (ret) {
-		pr_err("%s:msmfb_overlay_wait ioctl failed \n", __func__);
+		pr_err("%s:msmfb_overlay_wait ioctl failed", __func__);
 		return ret;
 	}
 
 	ret = mdp4_overlay_play_wait(info, &req);
-	
-	return ret;	
+
+	return ret;
 }
+
 static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 {
 	int	ret;
@@ -2639,15 +2527,6 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 
 	if (mfd->overlay_play_enable == 0)	/* nothing to do */
 		return 0;
-
-// to block broken image during camera is running
-#ifdef MSM_ROTATOR_IOCTL_CHECK
-	if((get_rotator_ctl_result() == NO_ROTATE) &&
-		is_imx105_sensor_open()) {
-		//printk("__debug %s will be returned for rotation is not changed .... \n",__func__);
-		return 0;
-	}
-#endif
 
 	ret = copy_from_user(&req, argp, sizeof(req));
 	if (ret) {
@@ -2693,37 +2572,6 @@ static int msmfb_overlay_play_enable(struct fb_info *info, unsigned long *argp)
 	return 0;
 }
 
-#ifdef MSM_ROTATOR_IOCTL_CHECK
-void set_rotator_ctl_result(int result)
-{
-	rotate_result = result;	
-}
-
-int get_rotator_ctl_result(void)
-{
-	int ret;
-
-	ret = rotate_result;
-
-	return ret;
-}
-
-static int msmfb_overlay_rotator(struct fb_info *info, unsigned long *argp)
-{
-	int ret, enable;
-
-	ret = copy_from_user(&enable, argp, sizeof(enable));	
-	if (ret) {
-	//	printk(KERN_ERR "%s:msmfb_overlay_rotator ioctl failed\n",
-	//		__func__);
-		return ret;
-	}
-
-	set_rotator_ctl_result(enable);
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_FB_MSM_OVERLAY_WRITEBACK
 static int msmfb_overlay_blt(struct fb_info *info, unsigned long *argp)
@@ -2853,6 +2701,11 @@ static void msmfb_set_color_conv(struct mdp_ccs *p)
 		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 	}
 }
+#else
+static void msmfb_set_color_conv(struct mdp_csc *p)
+{
+	mdp4_vg_csc_update(p);
+}
 #endif
 
 static int msmfb_notify_update(struct fb_info *info, unsigned long *argp)
@@ -2890,9 +2743,7 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 #ifndef CONFIG_FB_MSM_MDP40
 	struct mdp_ccs ccs_matrix;
 #else
-#if defined(CONFIG_LGE_BROADCAST)||defined(CONFIG_LGE_BROADCAST_DCM)
-	struct mdp_ccs ccs_matrix;
-#endif
+	struct mdp_csc csc_matrix;
 #endif
 	struct mdp_page_protection fb_page_protection;
 	int ret = 0;
@@ -2924,14 +2775,7 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = msmfb_overlay_play_enable(info, argp);
 		up(&msm_fb_ioctl_ppp_sem);
 		break;
-#ifdef MSM_ROTATOR_IOCTL_CHECK
-	case MSMFB_ROTATOR_IOCTL_ROTATE:
-		down(&msm_fb_ioctl_ppp_sem);
-		ret = msmfb_overlay_rotator(info, argp);
-		up(&msm_fb_ioctl_ppp_sem);
-		break;
-#endif
-	case MSMFB_OVERLAY_PLAY_WAIT: // case 00627432  QCT HDMI patch
+	case MSMFB_OVERLAY_PLAY_WAIT:
 		down(&msm_fb_ioctl_ppp_sem);
 		ret = msmfb_overlay_play_wait(info, argp);
 		up(&msm_fb_ioctl_ppp_sem);
@@ -2984,28 +2828,16 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		msmfb_set_color_conv(&ccs_matrix) ;
 		up(&msm_fb_ioctl_ppp_sem);
 #else
-#if defined(CONFIG_LGE_BROADCAST)||defined(CONFIG_LGE_BROADCAST_DCM)
-		ret = copy_from_user(&ccs_matrix, argp, sizeof(ccs_matrix));
+		ret = copy_from_user(&csc_matrix, argp, sizeof(csc_matrix));
 		if (ret) {
-			printk(KERN_ERR
-				"%s:MSMFB_SET_CCS_MATRIX ioctl failed \n",
+			pr_err("%s:MSMFB_SET_CSC_MATRIX ioctl failed\n",
 				__func__);
 			return ret;
 		}
-
 		down(&msm_fb_ioctl_ppp_sem);
-		if (ccs_matrix.direction == 0)
-		{
-			mdp4_vg_csc_default_setup();
-		}
-		else
-		{
-			mdp4_vg_csc_dmb_setup(&ccs_matrix);
-		}
+		msmfb_set_color_conv(&csc_matrix);
 		up(&msm_fb_ioctl_ppp_sem);
-#else
-		ret = -EINVAL;
-#endif
+
 #endif
 
 		break;
@@ -3095,6 +2927,9 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		break;
 
 	case MSMFB_HISTOGRAM:
+		if (!mfd->panel_power_on)
+			return -EPERM;
+
 		if (!mfd->do_histogram)
 			return -ENODEV;
 
@@ -3203,7 +3038,7 @@ struct platform_device *msm_fb_add_device(struct platform_device *pdev)
 	 *
 	 */
 	if (type == HDMI_PANEL || type == DTV_PANEL || type == TV_PANEL)
-		pdata->panel_info.fb_num = 2;//1;
+		pdata->panel_info.fb_num = 1;
 	else
 		pdata->panel_info.fb_num = MSM_FB_NUM;
 
@@ -3314,100 +3149,5 @@ int __init msm_fb_init(void)
 
 	return 0;
 }
-
-/* 11.03.16 jaeseong.gim@lge.com 
-	implement "msm_fb_read" for screenshot such as DDMS" */
-#ifdef CONFIG_LGE_I_DISP_FBREAD
-static ssize_t
-msm_fb_read(struct fb_info *info, char __user *buf, size_t count, loff_t *ppos)
-{
-
-	unsigned long p = *ppos;
-	u32 *buffer; 
-	u8 *dst;
-	u8 __iomem *src;
-	u8 r,g,b;
-	int c, i, cnt = 0, err = 0;
-	unsigned long total_size;
-	int line_length, xres, bpp, yoff;
-
-	xres = info->var.xres;
-	line_length = ALIGN(xres, 32);
-	bpp = info->var.bits_per_pixel/8;
-    yoff = info->var.yoffset;
-
-	total_size = line_length * info->var.yres * bpp;
-
-	if (p >= total_size)
-    {
-        *ppos=0;
-		return 0;
-    }
-
-	if (count + p > total_size)
-    {
-		count = total_size - p;
-    }
-
-	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
-			GFP_KERNEL);
-
-	if (!buffer)
-		return -ENOMEM;
-
-	//src = (u8 __iomem *) (info->screen_base + line_length * yoff * bpp + p);
-	
-	if (p==0){																	 
-		if(bypass_src) iounmap(bypass_src); 									 
-		bypass_src = 0; 														 
-		if(bypass_addr && bypass_bpp == 4)										 
-			bypass_src = (char __iomem*) ioremap(bypass_addr, total_size);		 
-	}																			 
-																				 
-	if (bypass_src) 															 
-		src = (u8 __iomem *) (bypass_src + p);									 
-	else																		 
-		src = (u8 __iomem *) (info->screen_base + line_length * yoff * bpp + p); 
-    //if(p==0) printk("jaeseong.gim offset:%d yoff:%d src:%x\n",info->var.yoffset,yoff,(unsigned int)src);
-
-	for(i=0;i<count;i+=4){
-
-		c = 4;
-		r = fb_readb(src++);
-		g = fb_readb(src++);
-		b = fb_readb(src++);
-		src++;
-
-		*ppos += c;
-
-		if((p+i)%(line_length*bpp) >= xres*bpp){
-			continue;
-		}
-
-		dst = (u8 *)buffer;
-		*dst++ = 0xff;
-		*dst++ = b;
-		*dst++ = g;
-		*dst++ = r;
-
-		if (copy_to_user(buf, buffer, c)) {
-			err = -EFAULT;
-			break;
-		}
-
-		cnt += c;
-		buf += c;
-	}
-
-	kfree(buffer);
-	   if(bypass_addr == 0 && bypass_src)     
-    {                                            
-        iounmap(bypass_src);                     
-        bypass_src = 0;                          
-    }                                            
-
-	return (err) ? err : cnt;
-}
-#endif
 
 module_init(msm_fb_init);

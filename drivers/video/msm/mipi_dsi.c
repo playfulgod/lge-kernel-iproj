@@ -414,7 +414,7 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info)
 #ifndef CONFIG_LGE_I_DISP_UNDERRUN
 	if (panel_info)
 		mipi_dsi_phy_pll_config(panel_info->clk_rate);
-#endif 
+#endif
 
 	/* pll ctrl 0 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x200, pd->pll[0]);
@@ -475,8 +475,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	mfd = platform_get_drvdata(pdev);
 	pinfo = &mfd->panel_info;
 
-#ifdef CONFIG_LGE_I_DISP_OV_MUTEX
-#else
+#ifndef CONFIG_LGE_I_DISP_OV_MUTEX
 	mutex_lock(&mfd->dma->ov_mutex);
 #endif
 
@@ -487,15 +486,17 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		mdp4_dsi_cmd_dma_busy_wait(mfd);
 		mdp4_dsi_blt_dmap_busy_wait(mfd);
+		mipi_dsi_mdp_busy_wait(mfd);
 	}
-	
-	/* [I-Pjt/atnt & hdk] minjong.gong@lge.com Start ==> [
+
+       
+       /* [I-Pjt/atnt & hdk] minjong.gong@lge.com Start ==> [
   * 2011.03.24, Add code to reset HS mode 
   */
 #ifdef CONFIG_LGE_I_DISP_HSMODE
 	data = 0;
 	data = MIPI_INP(MIPI_DSI_BASE + 0x00A8);
-	data = data & ~(BIT(28));	/* BIT28 : CLKLN_HS_FORCE_REQUEST */
+	data = data & ~(BIT(28));       /* BIT28 : CLKLN_HS_FORCE_REQUEST */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x00A8, data);
 #endif
 /* [I-Pjt/atnt & hdk] minjong.gong@lge.com End <== ] */
@@ -557,8 +558,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(0);
 
-#ifdef CONFIG_LGE_I_DISP_OV_MUTEX
-#else
+#ifndef CONFIG_LGE_I_DISP_OV_MUTEX
 	mutex_unlock(&mfd->dma->ov_mutex);
 #endif
 

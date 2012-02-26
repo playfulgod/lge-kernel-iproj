@@ -178,6 +178,7 @@ static int mipi_lgit_backlight_level(int level, int max, int min)
 static struct msm_panel_common_pdata mipi_lgit_pdata = {
 	.backlight_level = mipi_lgit_backlight_level,
 	.panel_config_gpio = mipi_config_gpio,
+        .mdp_rev = MDP_REV_40,
 };
 
 static struct platform_device mipi_dsi_lgit_panel_device = {
@@ -199,6 +200,7 @@ static int mipi_sharp_backlight_level(int level, int max, int min)
 static struct msm_panel_common_pdata mipi_sharp_pdata = {
 	.backlight_level = mipi_sharp_backlight_level,
 	.panel_config_gpio = mipi_config_gpio,
+        .mdp_rev = MDP_REV_40,
 };
 
 static struct platform_device mipi_dsi_sharp_panel_device = {

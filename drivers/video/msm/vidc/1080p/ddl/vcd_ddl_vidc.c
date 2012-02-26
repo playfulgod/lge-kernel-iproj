@@ -250,6 +250,10 @@ void ddl_vidc_decode_init_codec(struct ddl_client_context *ddl)
 		vidc_sm_set_mpeg4_profile_override(
 			&ddl->shared_mem[ddl->command_channel],
 			VIDC_SM_PROFILE_INFO_ASP);
+	if (VCD_CODEC_H264 == decoder->codec.codec)
+		vidc_sm_set_decoder_sei_enable(
+			&ddl->shared_mem[ddl->command_channel],
+			VIDC_SM_RECOVERY_POINT_SEI);
 	ddl_context->vidc_decode_seq_start[ddl->command_channel](
 		&seq_start_param);
 }
@@ -486,6 +490,7 @@ static void ddl_vidc_encode_set_multi_slice_info(
 	case VCD_MSLICE_OFF:
 		m_slice_sel = VIDC_1080P_MSLICE_DISABLE;
 	break;
+	case VCD_MSLICE_BY_GOB:
 	case VCD_MSLICE_BY_MB_COUNT:
 		m_slice_sel = VIDC_1080P_MSLICE_BY_MB_COUNT;
 		i_multi_slice_size = encoder->multi_slice.m_slice_size;
@@ -511,6 +516,8 @@ void ddl_vidc_encode_init_codec(struct ddl_client_context *ddl)
 		VIDC_SM_FRAME_SKIP_DISABLE;
 	u32 index, luma[4], chroma[4], hdr_ext_control = false;
 	const u32 recon_bufs = 4;
+	u32 h263_cpfc_enable = false;
+	u32 scaled_frame_rate;
 
 	ddl_vidc_encode_set_profile_level(ddl);
 	vidc_1080p_set_encode_frame_size(encoder->frame_size.width,
@@ -524,9 +531,17 @@ void ddl_vidc_encode_init_codec(struct ddl_client_context *ddl)
 		hdr_ext_control = true;
 	if (encoder->r_cframe_skip > 0)
 		r_cframe_skip = VIDC_SM_FRAME_SKIP_ENABLE_LEVEL;
+	scaled_frame_rate = DDL_FRAMERATE_SCALE(encoder->\
+			frame_rate.fps_numerator) /
+			encoder->frame_rate.fps_denominator;
+	if ((encoder->codec.codec == VCD_CODEC_H263) &&
+		(DDL_FRAMERATE_SCALE(DDL_INITIAL_FRAME_RATE)
+		 != scaled_frame_rate))
+		h263_cpfc_enable = true;
 	vidc_sm_set_extended_encoder_control(&ddl->shared_mem
 		[ddl->command_channel], hdr_ext_control,
-		r_cframe_skip, false, 0);
+		r_cframe_skip, false, 0,
+		h263_cpfc_enable);
 	vidc_sm_set_encoder_init_rc_value(&ddl->shared_mem
 		[ddl->command_channel],
 		encoder->target_bit_rate.target_bitrate);
@@ -536,10 +551,8 @@ void ddl_vidc_encode_init_codec(struct ddl_client_context *ddl)
 			[ddl->command_channel], true,
 			encoder->vop_timing.vop_time_resolution, 0);
 	if (encoder->rc_level.frame_level_rc)
-		vidc_1080p_encode_set_frame_level_rc_params((
-			DDL_FRAMERATE_SCALE(encoder->\
-			frame_rate.fps_numerator) /
-			encoder->frame_rate.fps_denominator),
+		vidc_1080p_encode_set_frame_level_rc_params(
+			scaled_frame_rate,
 			encoder->target_bit_rate.target_bitrate,
 			encoder->frame_level_rc.reaction_coeff);
 	if (encoder->rc_level.mb_level_rc)
@@ -826,20 +839,6 @@ u32 ddl_vidc_decode_set_buffers(struct ddl_client_context *ddl)
 			&ddl->shared_mem[ddl->command_channel],
 			decoder->dpb_buf_size.size_y,
 			decoder->dpb_buf_size.size_c);
-		//S hk qct patch case#00584622 , 2011-08-22 youngsoon.lim
-		DDL_MSG_ERROR("override profile %d", decoder->codec.codec); 			
-			if (decoder->codec.codec == VCD_CODEC_MPEG4
-					  || decoder->codec.codec == VCD_CODEC_DIVX_4
-					  || decoder->codec.codec == VCD_CODEC_DIVX_5
-					  || decoder->codec.codec == VCD_CODEC_DIVX_6
-					  || decoder->codec.codec == VCD_CODEC_XVID)
-			 { 
-				vidc_sm_set_mpeg4_profile_override(&ddl->shared_mem[ddl->command_channel],
-				VIDC_SM_PROFILE_INFO_ASP);
-				DDL_MSG_ERROR("override done");
-			}
-		//E hk qct patch case#00584622
-		
 	}
 	init_buf_param.cmd_seq_num = ++ddl_context->cmd_seq_num;
 	init_buf_param.inst_id = ddl->instance_id;

@@ -2381,6 +2381,11 @@ config FB_MSM_LCDC_SAMSUNG_WSVGA
 	select FB_MSM_LCDC_PANEL
 	default n
 
+config FB_MSM_LCDC_LG_XGA
+	bool
+	select FB_MSM_LCDC_PANEL
+	default n
+
 config FB_MSM_LCDC_CHIMEI_WXGA
 	bool
 	select FB_MSM_LCDC_PANEL
@@ -2454,6 +2459,13 @@ config FB_MSM_LCDC_SAMSUNG_WSVGA_PANEL
 	select FB_MSM_LCDC_SAMSUNG_WSVGA
 	---help---
 	  Support for LCDC Samsung WSVGA (1024x600) panel
+
+config FB_MSM_LCDC_LG_XGA_PANEL
+    depends on FB_MSM_LCDC_HW
+    bool "LCDC LG XGA Panel"
+    select FB_MSM_LCDC_LG_XGA
+    ---help---
+      Support for LCDC LG XGA (1024x768) panel
 
 config FB_MSM_LCDC_CHIMEI_WXGA_PANEL
 	depends on FB_MSM_LCDC_HW
@@ -2680,6 +2692,14 @@ config FB_MSM_HDMI_MSM_PANEL_DVI_SUPPORT
 	default n
 	---help---
 	  Support for DVI mode for MSM HDMI 1080p Panel
+
+config FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT
+	depends on FB_MSM_HDMI_MSM_PANEL
+	bool "Enable CEC"
+	default n
+	---help---
+	  Support for HDMI CEC Feature
+	  Choose to enable CEC
 
 config FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 	depends on FB_MSM_HDMI_MSM_PANEL

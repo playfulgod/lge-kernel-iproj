@@ -18,9 +18,6 @@
 #include <linux/types.h>
 #include <linux/fb.h>
 
-//jinho.jang - add msm_rotator_control_status
-//#define MSM_ROTATOR_IOCTL_CHECK
-
 #define MSMFB_IOCTL_MAGIC 'm'
 #define MSMFB_GRP_DISP          _IOW(MSMFB_IOCTL_MAGIC, 1, unsigned int)
 #define MSMFB_BLIT              _IOW(MSMFB_IOCTL_MAGIC, 2, unsigned int)
@@ -56,12 +53,6 @@
 
 #define MSMFB_MIXER_INFO       _IOWR(MSMFB_IOCTL_MAGIC, 148, \
 						struct msmfb_mixer_info_req)
-
-#ifdef MSM_ROTATOR_IOCTL_CHECK
-#define MSMFB_ROTATOR_IOCTL_ROTATE     _IOW(MSMFB_IOCTL_MAGIC, 148, unsigned int)
-#endif
-
-// case 00627432  QCT HDMI patch
 #define MSMFB_OVERLAY_PLAY_WAIT _IOWR(MSMFB_IOCTL_MAGIC, 149, \
 						struct msmfb_overlay_data)
 
@@ -89,6 +80,7 @@ enum {
 	MDP_Y_CRCB_H2V2_TILE,  /* Y and CrCb, pseudo planer tile */
 	MDP_Y_CBCR_H2V2_TILE,  /* Y and CbCr, pseudo planer tile */
 	MDP_Y_CR_CB_H2V2,  /* Y, Cr and Cb, planar */
+	MDP_Y_CR_CB_GH2V2,  /* Y, Cr and Cb, planar aligned to Android YV12 */
 	MDP_Y_CB_CR_H2V2,  /* Y, Cb and Cr, planar */
 	MDP_Y_CRCB_H1V1,  /* Y and CrCb, pseduo planer w/ Cr is in MSB */
 	MDP_Y_CBCR_H1V1,  /* Y and CbCr, pseduo planer w/ Cb is in MSB */
@@ -128,6 +120,7 @@ enum {
 #define MDP_DEINTERLACE_ODD		0x00400000
 #define MDP_OV_PLAY_NOWAIT		0x00200000
 #define MDP_SOURCE_ROTATED_90		0x00100000
+#define MDP_MEMORY_ID_TYPE_FB		0x00001000
 
 #define MDP_TRANSP_NOP 0xffffffff
 #define MDP_ALPHA_NOP 0xff
@@ -172,6 +165,15 @@ struct mdp_ccs {
 	int direction;			/* MDP_CCS_RGB2YUV or YUV2RGB */
 	uint16_t ccs[MDP_CCS_SIZE];	/* 3x3 color coefficients */
 	uint16_t bv[MDP_BV_SIZE];	/* 1x3 bias vector */
+};
+
+struct mdp_csc {
+	int id;
+	uint32_t csc_mv[9];
+	uint32_t csc_pre_bv[3];
+	uint32_t csc_post_bv[3];
+	uint32_t csc_pre_lv[6];
+	uint32_t csc_post_lv[6];
 };
 
 /* The version of the mdp_blit_req structure so that

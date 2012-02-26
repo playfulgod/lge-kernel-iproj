@@ -55,6 +55,7 @@
 
 extern uint32 mdp_hw_revision;
 extern ulong mdp4_display_intf;
+extern int mdp_rev;
 
 #define MDP4_REVISION_V1		0
 #define MDP4_REVISION_V2		1
@@ -259,6 +260,10 @@ struct mdp_dma_data {
 #define TV_ENC_UNDERRUN     BIT(7)
 #define TV_OUT_DMA3_START   BIT(13)
 #define MDP_HIST_DONE       BIT(20)
+
+/* histogram interrupts */
+#define INTR_HIST_DONE			BIT(1)
+#define INTR_HIST_RESET_SEQ_DONE	BIT(0)
 
 #ifdef CONFIG_FB_MSM_MDP22
 #define MDP_ANY_INTR_MASK (MDP_PPP_DONE| \

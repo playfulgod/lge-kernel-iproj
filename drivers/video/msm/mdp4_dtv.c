@@ -140,7 +140,6 @@ static int dtv_on(struct platform_device *pdev)
 	else
 		pm_qos_rate = 58000;
 #endif
-	mdp_set_core_clk(1);
 	mdp4_extn_disp = 1;
 #ifdef CONFIG_MSM_BUS_SCALING
 	if (dtv_bus_scale_handle > 0)
@@ -241,8 +240,7 @@ static int dtv_probe(struct platform_device *pdev)
 	 * get/set panel specific fb info
 	 */
 	mfd->panel_info = pdata->panel_info;
-	//mfd->fb_imgType = MDP_RGB_565;
-	mfd->fb_imgType = MDP_ARGB_8888;  // For alpha blending
+	mfd->fb_imgType = MDP_RGB_565;
 
 	fbi = mfd->fbi;
 	fbi->var.pixclock = mfd->panel_info.clk_rate;
