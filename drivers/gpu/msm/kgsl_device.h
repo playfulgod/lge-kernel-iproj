@@ -72,7 +72,6 @@ struct kgsl_device;
 struct platform_device;
 struct kgsl_device_private;
 struct kgsl_context;
-struct kgsl_power_stats;
 
 struct kgsl_functable {
 	void (*device_regread) (struct kgsl_device *device,
@@ -122,8 +121,7 @@ struct kgsl_functable {
 
 	int (*device_cleanup_pt)(struct kgsl_device *device,
 				 struct kgsl_pagetable *pagetable);
-	void (*device_power_stats)(struct kgsl_device *device,
-		struct kgsl_power_stats *stats);
+	unsigned int (*device_idle_calc)(struct kgsl_device *device);
 };
 
 struct kgsl_memregion {
@@ -221,9 +219,16 @@ struct kgsl_device_private {
 	struct kgsl_process_private *process_priv;
 };
 
-struct kgsl_power_stats {
-	s64 total_time;
-	s64 busy_time;
+struct kgsl_devconfig {
+	struct kgsl_memregion regspace;
+
+	unsigned int     mmu_config;
+	uint32_t        mpu_base;
+	int              mpu_range;
+	uint32_t        va_base;
+	unsigned int     va_range;
+
+	struct kgsl_memregion gmemspace;
 };
 
 struct kgsl_device *kgsl_get_device(int dev_idx);

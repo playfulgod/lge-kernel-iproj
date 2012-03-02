@@ -51,16 +51,6 @@
 
 struct platform_device;
 
-struct kgsl_busy {
-	struct timeval start;
-	struct timeval stop;
-	int on_time;
-	int time;
-	int on_time_old;
-	int time_old;
-	unsigned int no_nap_cnt;
-};
-
 struct kgsl_pwrctrl {
 	int interrupt_num;
 	int have_irq;
@@ -84,7 +74,6 @@ struct kgsl_pwrctrl {
 	s64 time;
 	unsigned int no_switch_cnt;
 	unsigned int idle_pass;
-	struct kgsl_busy busy;
 };
 
 void kgsl_pwrctrl_clk(struct kgsl_device *device, unsigned int pwrflag);
