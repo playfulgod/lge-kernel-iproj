@@ -535,13 +535,15 @@ void kgsl_sharedmem_free(struct kgsl_memdesc *memdesc)
 }
 EXPORT_SYMBOL(kgsl_sharedmem_free);
 
+#include <linux/android_pmem.h>
 static int
 _kgsl_sharedmem_ebimem(struct kgsl_memdesc *memdesc,
 			struct kgsl_pagetable *pagetable, size_t size)
 {
 	int result;
 
-	memdesc->physaddr = allocate_contiguous_ebi_nomap(size, SZ_8K);
+	memdesc->physaddr = allocate_contiguous_memory_nomap(size, PMEM_MEMTYPE_EBI1,
+                                 SZ_8K);
 
 	if (memdesc->physaddr == 0) {
 		KGSL_CORE_ERR("allocate_contiguous_ebi_nomap(%d) failed\n",
