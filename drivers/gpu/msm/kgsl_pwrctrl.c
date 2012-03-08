@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_bus.h>
+#include <mach/socinfo.h>
 
 #include "kgsl.h"
 #include "kgsl_pwrscale.h"
@@ -23,7 +24,6 @@
 #define KGSL_PWRFLAGS_AXI_ON   2
 #define KGSL_PWRFLAGS_IRQ_ON   3
 
-#define GPU_SWFI_LATENCY	3
 #define UPDATE_BUSY_VAL		1000000
 #define UPDATE_BUSY		50
 
@@ -250,7 +250,7 @@ static int kgsl_pwrctrl_gpubusy_show(struct device *dev,
 DEVICE_ATTR(gpuclk, 0644, kgsl_pwrctrl_gpuclk_show, kgsl_pwrctrl_gpuclk_store);
 DEVICE_ATTR(max_gpuclk, 0644, kgsl_pwrctrl_max_gpuclk_show,
 	kgsl_pwrctrl_max_gpuclk_store);
-DEVICE_ATTR(pwrnap, 0644, kgsl_pwrctrl_pwrnap_show, kgsl_pwrctrl_pwrnap_store);
+DEVICE_ATTR(pwrnap, 0666, kgsl_pwrctrl_pwrnap_show, kgsl_pwrctrl_pwrnap_store);
 DEVICE_ATTR(idle_timer, 0644, kgsl_pwrctrl_idle_timer_show,
 	kgsl_pwrctrl_idle_timer_store);
 DEVICE_ATTR(gpubusy, 0644, kgsl_pwrctrl_gpubusy_show,
@@ -491,7 +491,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 
 	pwr->nap_allowed = pdata_pwr->nap_allowed;
 	pwr->interval_timeout = pdata_pwr->idle_timeout;
-	pwr->ebi1_clk = clk_get(NULL, "ebi1_kgsl_clk");
+	pwr->ebi1_clk = clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(pwr->ebi1_clk))
 		pwr->ebi1_clk = NULL;
 	else
@@ -701,6 +701,8 @@ int kgsl_pwrctrl_sleep(struct kgsl_device *device)
 			return 0;
 		if (device->ftbl->isidle(device))
 			goto slumber;
+		else
+			device->pwrctrl.restore_slumber = true;
 	}
 
 	device->requested_state = KGSL_STATE_NONE;
@@ -731,9 +733,8 @@ clk_off:
 
 	device->state = device->requested_state;
 	device->requested_state = KGSL_STATE_NONE;
-	wake_unlock(&device->idle_wakelock);
-	pm_qos_update_request(device->pm_qos_req_dma,
-				PM_QOS_DEFAULT_VALUE);
+	if (device->idle_wakelock.name)
+		wake_unlock(&device->idle_wakelock);
 	KGSL_PWR_WARN(device, "state -> NAP/SLEEP(%d), device %d\n",
 				  device->state, device->id);
 
@@ -786,8 +787,9 @@ void kgsl_pwrctrl_wake(struct kgsl_device *device)
 	mod_timer(&device->idle_timer,
 				jiffies + device->pwrctrl.interval_timeout);
 
-	wake_lock(&device->idle_wakelock);
-	pm_qos_update_request(device->pm_qos_req_dma, GPU_SWFI_LATENCY);
+	if (device->idle_wakelock.name)
+		wake_lock(&device->idle_wakelock);
+
 	KGSL_PWR_INFO(device, "wake return for device %d\n", device->id);
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_wake);

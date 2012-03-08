@@ -18,6 +18,7 @@
 
 #include "z180.h"
 #include "z180_reg.h"
+#include "z180_trace.h"
 
 #define DRIVER_VERSION_MAJOR   3
 #define DRIVER_VERSION_MINOR   1
@@ -212,6 +213,8 @@ static irqreturn_t z180_isr(int irq, void *data)
 	struct z180_device *z180_dev = Z180_DEVICE(device);
 
 	z180_regread(device, ADDR_VGC_IRQSTATUS >> 2, &status);
+
+	trace_kgsl_z180_irq_status(device, status);
 
 	if (status & GSL_VGC_INT_MASK) {
 		z180_regwrite(device,
@@ -885,6 +888,16 @@ static void z180_irqctrl(struct kgsl_device *device, int state)
 	}
 }
 
+static unsigned int z180_gpuid(struct kgsl_device *device)
+{
+	/* Standard KGSL gpuid format:
+	 * top word is 0x0002 for 2D or 0x0003 for 3D
+	 * Bottom word is core specific identifer
+	 */
+
+	return (0x0002 << 16) | 180;
+}
+
 static const struct kgsl_functable z180_functable = {
 	/* Mandatory functions */
 	.regread = z180_regread,
@@ -902,6 +915,7 @@ static const struct kgsl_functable z180_functable = {
 	.cleanup_pt = z180_cleanup_pt,
 	.power_stats = z180_power_stats,
 	.irqctrl = z180_irqctrl,
+	.gpuid = z180_gpuid,
 	/* Optional functions */
 	.drawctxt_create = NULL,
 	.drawctxt_destroy = z180_drawctxt_destroy,

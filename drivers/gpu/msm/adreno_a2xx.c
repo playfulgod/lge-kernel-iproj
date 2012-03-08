@@ -15,6 +15,7 @@
 #include "kgsl_sharedmem.h"
 #include "kgsl_cffdump.h"
 #include "adreno.h"
+#include "adreno_a2xx_trace.h"
 
 /*
  *
@@ -598,7 +599,7 @@ static unsigned int *build_gmem2sys_cmds(struct adreno_device *adreno_dev,
 
 	/* Repartition shaders */
 	*cmds++ = cp_type0_packet(REG_SQ_INST_STORE_MANAGMENT, 1);
-	*cmds++ = 0x180;
+	*cmds++ = adreno_dev->pix_shader_start;
 
 	/* Invalidate Vertex & Pixel instruction code address and sizes */
 	*cmds++ = cp_type3_packet(CP_INVALIDATE_STATE, 1);
@@ -800,7 +801,7 @@ static unsigned int *build_sys2gmem_cmds(struct adreno_device *adreno_dev,
 
 	/* Repartition shaders */
 	*cmds++ = cp_type0_packet(REG_SQ_INST_STORE_MANAGMENT, 1);
-	*cmds++ = 0x180;
+	*cmds++ = adreno_dev->pix_shader_start;
 
 	/* Invalidate Vertex & Pixel instruction code address and sizes */
 	*cmds++ = cp_type3_packet(CP_INVALIDATE_STATE, 1);
@@ -1511,6 +1512,9 @@ static void a2xx_cp_intrcallback(struct kgsl_device *device)
 		KGSL_DRV_WARN(device,
 			"Looped %d times to read REG_CP_INT_STATUS\n",
 			num_reads);
+
+	trace_kgsl_a2xx_irq_status(device, master_status, status);
+
 	if (!status) {
 		if (master_status & MASTER_INT_SIGNAL__CP_INT_STAT) {
 			/* This indicates that we could not read CP_INT_STAT.

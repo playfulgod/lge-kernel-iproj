@@ -272,7 +272,7 @@ kgsl_iommu_map(void *mmu_specific_pt,
 	for (iommu_virt_addr = memdesc->gpuaddr;
 		iommu_virt_addr < (memdesc->gpuaddr + memdesc->size);
 		iommu_virt_addr += SZ_4K, offset += PAGE_SIZE) {
-		physaddr = memdesc->ops->physaddr(memdesc, offset);
+		//physaddr = memdesc->ops->physaddr(memdesc, offset);
 		if (!physaddr) {
 			KGSL_CORE_ERR("Failed to convert %x address to "
 			"physical\n", (unsigned int)memdesc->hostptr + offset);
