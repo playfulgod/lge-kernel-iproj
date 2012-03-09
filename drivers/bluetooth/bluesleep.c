@@ -337,9 +337,9 @@ static void bluesleep_tx_timer_expire(unsigned long data)
 //[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
 #if defined(CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH)
 		/* clear the incoming data flag only when there is no enqueued data on transport and can be asleep */
-		if(msm_hs_tx_empty(bsi->uport)){
+		//if(msm_hs_tx_empty(bsi->uport)){
 			clear_bit(BT_TXDATA, &flags);
-		}
+	//	}
 #endif
 //[LGE_UPDATE_E] 20110420, BRCM BT Power,  [END]
 	}

@@ -83,6 +83,7 @@ static struct platform_device msm_bluesleep_device = {
 
 static int bluetooth_power(int);
 static int lge_bluetooth_toggle_radio(void *data, bool state);
+static int bt_status = 0;
 
 #if 0
 static struct platform_device msm_bt_power_device = {
@@ -187,6 +188,9 @@ static int bluetooth_power(int on)
 {
   int ret, pin;
 
+  if (on == bt_status)
+	return 0;
+
   if(on)
     {
  /*   	
@@ -246,6 +250,7 @@ static int bluetooth_power(int on)
             }
         }
     }
+  bt_status = on;
   return 0;
 }
 
