@@ -2132,7 +2132,7 @@ static void __init msm8x60_init_dsps(void)
 #define MSM_PMEM_SF_SIZE 0x4000000 /* 64 Mbytes */
 
 #define MSM_PMEM_KERNEL_EBI1_SIZE  0x600000
-#define MSM_PMEM_ADSP_SIZE         0x2000000
+#define MSM_PMEM_ADSP_SIZE         0x2001000
 #define MSM_PMEM_AUDIO_SIZE        0x279000
 
 #define MSM_SMI_BASE          0x38000000
