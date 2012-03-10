@@ -46,44 +46,41 @@
 #define MSM_FB_DSUB_PMEM_ADDER (0)
 #endif
 
-#ifdef CONFIG_FB_MSM_OVERLAY_WRITEBACK
-/* 960 x 540 x 3 x 2 */
-//#define MSM_FB_WRITEBACK_SIZE 0x300000
-/* 1280 x 736 x 3 x 2 */
-#define MSM_FB_WRITEBACK_SIZE 0x564000
-#else
-#define MSM_FB_WRITEBACK_SIZE 0
-#endif
-
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
-/* prim = 1024 x 600 x 4(bpp) x 3(pages) */
-//#define MSM_FB_PRIM_BUF_SIZE 0x708000
-/* prim = 1280 x 736 x 4(bpp) x 3(pages) */
-#define MSM_FB_PRIM_BUF_SIZE 0xAC8000
+#define MSM_FB_PRIM_BUF_SIZE (1280 * 736 * 4 * 3) /* 4 bpp x 3 pages */
 #else
-/* prim = 1024 x 600 x 4(bpp) x 2(pages) */
-//#define MSM_FB_PRIM_BUF_SIZE 0x4B0000
-/* prim = 1280 x 736 x 4(bpp) x 2(pages) */
-#define MSM_FB_PRIM_BUF_SIZE 0x730000
+#define MSM_FB_PRIM_BUF_SIZE (1280 * 736 * 4 * 2) /* 4 bpp x 2 pages */
 #endif
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
-/* prim = 1024 x 600 x 4(bpp) x 2(pages)
- * hdmi = 1920 x 1080 x 2(bpp) x 1(page)
- * Note: must be multiple of 4096 */
-/* change FB size for caption : 0x3F4800 -> 0xFD2000 */ 
-#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + 0xFD2000 + MSM_FB_WRITEBACK_SIZE + MSM_FB_DSUB_PMEM_ADDER, 4096)
-//#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + 0x3F4800 + MSM_FB_WRITEBACK_SIZE + MSM_FB_DSUB_PMEM_ADDER, 4096)
+#define MSM_FB_EXT_BUF_SIZE  (1920 * 1080 * 2 * 1) /* 2 bpp x 1 page */
 #elif defined(CONFIG_FB_MSM_TVOUT)
-/* prim = 1024 x 600 x 4(bpp) x 2(pages)
- * tvout = 720 x 576 x 2(bpp) x 2(pages)
- * Note: must be multiple of 4096 */
-#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + 0x195000 + \
-			MSM_FB_WRITEBACK_SIZE + MSM_FB_DSUB_PMEM_ADDER, 4096)
-#else /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
-#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE +  \
-			MSM_FB_WRITEBACK_SIZE + MSM_FB_DSUB_PMEM_ADDER, 4096)
-#endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
+#define MSM_FB_EXT_BUF_SIZE  (720 * 576 * 2 * 2) /* 2 bpp x 2 pages */
+#else
+#define MSM_FB_EXT_BUF_SIZE     0
+#endif
+
+#ifdef CONFIG_FB_MSM_OVERLAY_WRITEBACK
+/* width x height x 3 bpp x 2 frame buffer */
+#define MSM_FB_WRITEBACK_SIZE (1280 * 736 * 3 * 2)
+#define MSM_FB_WRITEBACK_OFFSET  \
+                (MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE)
+#else
+#define MSM_FB_WRITEBACK_SIZE   0
+#define MSM_FB_WRITEBACK_OFFSET 0
+#endif
+
+
+/* Note: must be multiple of 4096 */
+#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE + \
+                                 MSM_FB_WRITEBACK_SIZE + \
+                                 MSM_FB_DSUB_PMEM_ADDER, 4096)
+
+
+static int writeback_offset(void)
+{
+	return MSM_FB_WRITEBACK_OFFSET;
+}
 
 static struct resource msm_fb_resources[] = {
 	{
@@ -178,7 +175,8 @@ static int mipi_lgit_backlight_level(int level, int max, int min)
 static struct msm_panel_common_pdata mipi_lgit_pdata = {
 	.backlight_level = mipi_lgit_backlight_level,
 	.panel_config_gpio = mipi_config_gpio,
-        .mdp_rev = MDP_REV_40,
+        .mdp_rev = MDP_REV_41,
+	.writeback_offset = writeback_offset,
 };
 
 static struct platform_device mipi_dsi_lgit_panel_device = {
@@ -200,7 +198,8 @@ static int mipi_sharp_backlight_level(int level, int max, int min)
 static struct msm_panel_common_pdata mipi_sharp_pdata = {
 	.backlight_level = mipi_sharp_backlight_level,
 	.panel_config_gpio = mipi_config_gpio,
-        .mdp_rev = MDP_REV_40,
+        .mdp_rev = MDP_REV_41,
+	.writeback_offset = writeback_offset,
 };
 
 static struct platform_device mipi_dsi_sharp_panel_device = {
@@ -903,6 +902,8 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #ifdef CONFIG_MSM_BUS_SCALING
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 #endif
+        .mdp_rev = MDP_REV_41,
+	.writeback_offset = writeback_offset,
 };
 
 #ifdef CONFIG_FB_MSM_TVOUT

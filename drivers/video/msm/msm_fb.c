@@ -605,7 +605,8 @@ static struct platform_driver msm_fb_driver = {
 		   },
 };
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_FB_MSM_MDP303)
+    /* 11.08.29 jaeseong.gim@lge.com add framebuffer clear code to suspend routine */
+#if defined(CONFIG_HAS_EARLYSUSPEND)
 static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 {
 	count >>= 2;
@@ -635,13 +636,33 @@ static void msmfb_early_suspend(struct early_suspend *h)
 		break;
 	}
 #endif
+
+    /* 11.08.29 jaeseong.gim@lge.com add framebuffer clear code to suspend routine
+     * only for mipi video panel */
+#if !defined(CONFIG_FB_MSM_MDP303) && defined(CONFIG_FB_MSM_OVERLAY)
+	struct fb_info *fbi = mfd->fbi;
+    if (mfd->panel_info.type == MIPI_VIDEO_PANEL) {
+        switch (mfd->fbi->var.bits_per_pixel) {
+        case 32:
+            memset32_io((void *)fbi->screen_base, 0xFF000000,
+                                fbi->fix.smem_len);
+            break;
+        default:
+            memset_io(fbi->screen_base, 0x00, fbi->fix.smem_len);
+            break;
+        }
+    }
+#endif
+
 	msm_fb_suspend_sub(mfd);
+
 }
 
 static void msmfb_early_resume(struct early_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						    early_suspend);
+						    
 	msm_fb_resume_sub(mfd);
 }
 #endif
@@ -1072,7 +1093,11 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	var->yres_virtual = panel_info->yres * mfd->fb_page;
 	var->bits_per_pixel = bpp * 8;	/* FrameBuffer color depth */
 	if (mfd->dest == DISPLAY_LCD) {
-		var->reserved[4] = panel_info->lcd.refx100 / 100;
+		// jinho.jang - fps define (CTS test) 
+		if(mfd->panel_info.type == MIPI_VIDEO_PANEL)
+			var->reserved[4] = panel_info->mipi.frame_rate;
+		else
+			var->reserved[4] = panel_info->lcd.refx100 / 100;
 	} else {
 		var->reserved[4] = panel_info->clk_rate /
 			((panel_info->lcdc.h_back_porch +
