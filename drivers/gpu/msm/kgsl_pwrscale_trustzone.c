@@ -120,7 +120,8 @@ static void tz_wake(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 {
 	struct tz_priv *priv = pwrscale->priv;
 	if (device->state != KGSL_STATE_NAP &&
-		priv->governor == TZ_GOVERNOR_ONDEMAND)
+		priv->governor == TZ_GOVERNOR_ONDEMAND &&
+		device->pwrctrl.restore_slumber == 0)
 		kgsl_pwrctrl_pwrlevel_change(device,
 					     device->pwrctrl.thermal_pwrlevel);
 }
@@ -130,7 +131,7 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 	struct tz_priv *priv = pwrscale->priv;
 	struct kgsl_power_stats stats;
-	int val;
+	int val, idle;
 
 	/* In "performance" mode the clock speed always stays
 	   the same */
@@ -158,11 +159,18 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 		priv->no_switch_cnt = 0;
 	}
 
-	val = __secure_tz_entry(TZ_UPDATE_ID,
-				stats.total_time - stats.busy_time);
+	idle = stats.total_time - stats.busy_time;
+	idle = (idle > 0) ? idle : 0;
+	val = __secure_tz_entry(TZ_UPDATE_ID, idle);
 	if (val)
 		kgsl_pwrctrl_pwrlevel_change(device,
 					     pwr->active_pwrlevel + val);
+}
+
+static void tz_busy(struct kgsl_device *device,
+	struct kgsl_pwrscale *pwrscale)
+{
+	device->on_time = ktime_to_us(ktime_get());
 }
 
 static void tz_sleep(struct kgsl_device *device,
@@ -202,6 +210,7 @@ static void tz_close(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 struct kgsl_pwrscale_policy kgsl_pwrscale_policy_tz = {
 	.name = "trustzone",
 	.init = tz_init,
+	.busy = tz_busy,
 	.idle = tz_idle,
 	.sleep = tz_sleep,
 	.wake = tz_wake,
