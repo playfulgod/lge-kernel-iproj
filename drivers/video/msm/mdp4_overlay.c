@@ -2001,7 +2001,7 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 		mutex_unlock(&mfd->dma->ov_mutex);
 		return -EINTR;
 	}
-	pr_err("__debug %s entering ... \n",__func__);
+	//pr_err("__debug %s entering ... \n",__func__);
 #endif
 
 	perf_level = mdp4_overlay_get_perf_level(req);

@@ -142,7 +142,7 @@ else if(level >MAX_LEVEL)
 
 
 		lm3530_write_reg(client, 0xA0, cal_value);
-		printk("%s() : cal_value is : 0x%x\n", __func__, cal_value);
+		//printk("%s() : cal_value is : 0x%x\n", __func__, cal_value);
 	}
 	else{
 		
@@ -166,7 +166,7 @@ void lm3530_backlight_on(int level)
 		
 		msleep(100);              
 	}
-		printk("%s() \n", __func__);
+		//printk("%s() \n", __func__);
 	//printk("%s received (prev backlight_status: %s)\n", __func__, backlight_status?"ON":"OFF");
 	lm3530_set_main_current_level(main_lm3530_dev->client, level);
 	backlight_status = BL_ON;

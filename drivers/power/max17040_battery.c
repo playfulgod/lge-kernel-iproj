@@ -42,7 +42,7 @@
 #define MAX17040_BATTERY_FULL	95
 
 /* #define LGE_DEBUG	0 */
-#define LGE_DEBUG_FINAL
+//#define LGE_DEBUG_FINAL
 
 #ifdef CONFIG_LGE_FUEL_GAUGE
 #define TOLERANCE	15

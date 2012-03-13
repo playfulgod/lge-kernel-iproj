@@ -698,7 +698,7 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 		/* range: 0 to 234(12x) 224(8x) */
 		gain = max_legal_gain;
 
-	printk("[QCTK]imx105_write_exp_gain : gain = %d line = %d", gain, line);	//LGE_BSP_CAMERA::shchang@qualcomm.com
+	CDBG("[QCTK]imx105_write_exp_gain : gain = %d line = %d", gain, line);	//LGE_BSP_CAMERA::shchang@qualcomm.com
 
 	/* update gain registers */
 	gain_msb = (uint8_t) ((gain & 0xFF00) >> 8);
@@ -770,12 +770,12 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 	// Start LGE_BSP_CAMERA::shchang@qualcomm.com 2011-07-11
 
 	//real_gain = (float)(256.0 / (256.0 - (float)gain));
-	printk("[QCTK] Gain = %d\n", gain);
+	CDBG("[QCTK] Gain = %d\n", gain);
 	//Gain : 0~234
 	//Just use Sony 2DNR option ~15 ~ 127
 	if(gain > 220)
 	{
-		printk("Func : NoiseReduction - Writing low light NR Value..\n");
+		//printk("Func : NoiseReduction - Writing low light NR Value..\n");
 		
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_ENABLE,0x79);	
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_GLINKINGSWITCH,0x0E);	
@@ -784,7 +784,7 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 	}
 	else if(gain > 200)
 	{
-		printk("Func : NoiseReduction - Writing indoor NR Value..\n");
+		//printk("Func : NoiseReduction - Writing indoor NR Value..\n");
 		
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_ENABLE,0x79);	
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_GLINKINGSWITCH,0x0E);	
@@ -793,7 +793,7 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 	}
 	else if(gain > 150)
 	{
-		printk("Func : NoiseReduction - Writing bright2 light NR Value..\n");
+		//printk("Func : NoiseReduction - Writing bright2 light NR Value..\n");
 		
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_ENABLE,0x79);	
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_GLINKINGSWITCH,0x0E);	
@@ -802,7 +802,7 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 	}
 	else if(gain > 80)
 	{
-		printk("Func : NoiseReduction - Writing bright1 light NR Value..\n");
+		//printk("Func : NoiseReduction - Writing bright1 light NR Value..\n");
 		
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_ENABLE,0x79);	
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_GLINKINGSWITCH,0x0E);	
@@ -811,7 +811,7 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 	}
 	else 
 	{
-		printk("Func : NoiseReduction - Writing bright1 light NR Value..\n");
+		//printk("Func : NoiseReduction - Writing bright1 light NR Value..\n");
 		
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_ENABLE,0x79);	
 		//rc = imx105_i2c_write_b_sensor(REG_2DNR_GLINKINGSWITCH,0x0E);	
@@ -821,7 +821,7 @@ static int32_t imx105_write_exp_gain(uint16_t gain, uint32_t line)
 
 	if(rc<0)
 	{
-		printk("Func : NoiseReduction - Writing NR Value is failed..\n");
+		//printk("Func : NoiseReduction - Writing NR Value is failed..\n");
 		return rc;
 	}
 	// End LGE_BSP_CAMERA::shchang@qualcomm.com 2011-07-11 

@@ -1006,7 +1006,7 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 		if (udata_resp.length > 0) {
 			if (copy_to_user(uptr,
 					 udata_resp.value,
-					 udata_resp.length)) {
+					 udata_resp.length) && udata_resp.type != 113) {
 				ERR_COPY_TO_USER();
 				rc = -EFAULT;
 				goto end;

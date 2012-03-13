@@ -2145,7 +2145,7 @@ static int pm8058_is_battery_present(void)
 
 	mv_reading = 0;
 	batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-	pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
+	pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
 	if (mv_reading > 0 && mv_reading < BATT_THERM_OPEN_MV)
 		return 1;
 
@@ -2218,7 +2218,7 @@ static int pm8058_get_battery_temperature_adc(void)
     }
 #else
     batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-    pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
+    pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
     return mv_reading;
 #endif
 }
@@ -2254,7 +2254,7 @@ static int pm8058_is_battery_id_valid(void)
 
     batt_id = battery_info_get();
 
-	pr_err("%s: batt_id is %x\n", __func__, batt_id);
+	pr_debug("%s: batt_id is %x\n", __func__, batt_id);
 
 //skt board can't read batt id. check plz
 #ifdef CONFIG_MACH_LGE_I_BOARD_SKT
