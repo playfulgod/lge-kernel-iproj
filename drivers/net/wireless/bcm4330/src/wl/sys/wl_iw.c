@@ -1914,8 +1914,8 @@ init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 
 
 // LGE_UPDATE_S bluetooth.kang@lge.com	 [SSID HIDDEN] 2010.5.10
-	ret |= get_parameter_from_string(&str_ptr, "HIDDEN=",PTYPE_INTDEC,  &ap_cfg->closednet, 5);
-	ret |= get_parameter_from_string(&str_ptr, "COUNTRY=",PTYPE_STRING,  &ap_cfg->country_code, 3);
+	/*ret |= */get_parameter_from_string(&str_ptr, "HIDDEN=",PTYPE_INTDEC,  &ap_cfg->closednet, 5);
+	/*ret |=*/ get_parameter_from_string(&str_ptr, "COUNTRY=",PTYPE_STRING,  &ap_cfg->country_code, 3);
 // LGE_UPDATE_E bluetooth.kang@lge.com	 [SSID HIDDEN] 2010.5.10
 
 
