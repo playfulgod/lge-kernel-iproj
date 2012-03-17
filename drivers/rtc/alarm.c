@@ -472,7 +472,7 @@ static int alarm_resume(struct platform_device *pdev)
 	unsigned long       flags;
 
 	pr_alarm(SUSPEND, "alarm_resume(%p)\n", pdev);
-#ifdef CONFIG_RTC_PM8058 //platform@lge.com : alarm bug fix
+#ifdef CONFIG_RTC_PM8058_DONTUSE //platform@lge.com : alarm bug fix
 	rtc_read_alarm(alarm_rtc_dev, &alarm);
 #else //android orginal code
 	memset(&alarm, 0, sizeof(alarm));

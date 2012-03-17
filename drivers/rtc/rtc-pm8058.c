@@ -245,7 +245,7 @@ pm8058_rtc0_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	rtc_tm_to_time(&rtc_tm, &secs_rtc);
 
 	if (secs_alarm < secs_rtc) {
-		pr_err("%s: Trying to set alarm in the past\n", __func__);
+		pr_err("%s: Trying to set alarm in the past (%lu vs %lu)\n", __func__,secs_alarm,secs_rtc);
 		return -EINVAL;
 	}
 
