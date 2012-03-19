@@ -39,6 +39,8 @@
 #include "clock-8x60.h"
 #include "avs.h"
 
+extern unsigned int max_capped;
+
 #define dprintk(msg...) \
 	cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "cpufreq-msm", msg)
 
@@ -610,6 +612,9 @@ int acpuclk_set_rate(int cpu, unsigned long rate, enum setrate_reason reason)
 		rc = -EINVAL;
 		goto out;
 	}
+
+	if (max_capped && rate > max_capped)
+		rate = max_capped;
 
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_HOTPLUG)
 		mutex_lock(&drv_state.lock);
