@@ -488,7 +488,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	pwr->nap_allowed = pdata_pwr->nap_allowed;
 	pwr->idle_needed = pdata_pwr->idle_needed;
 	pwr->interval_timeout = pdata_pwr->idle_timeout;
-	pwr->ebi1_clk = clk_get(&pdev->dev, "bus_clk");
+	pwr->ebi1_clk = clk_get(NULL, "ebi1_kgsl_clk");
 	if (IS_ERR(pwr->ebi1_clk))
 		pwr->ebi1_clk = NULL;
 	else
