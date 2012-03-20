@@ -2276,7 +2276,7 @@ msmsdcc_runtime_suspend(struct device *dev)
 	int rc = 0;
 
 	// bill.jung@lge.com - Don't process normal suspend	
-	if (host->mmc->index == 3)
+	if (host->mmc->index == 3 && !host->eject)
 	{		
 		printk(KERN_ERR "msmsdcc_runtime_suspend() - host->mmc->index=3 - Start");
 		msmsdcc_setup_clocks(host, false);
@@ -2366,7 +2366,7 @@ msmsdcc_runtime_resume(struct device *dev)
 
 
 	// bill.jung@lge.com - Don't process normal resume
-	if (host->mmc->index == 3)
+	if (host->mmc->index == 3 && !host->eject)
 	{
 		printk(KERN_ERR "msmsdcc_runtime_resume() - host->mmc->index=3 - Start");
 		
