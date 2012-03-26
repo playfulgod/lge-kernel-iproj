@@ -2129,10 +2129,10 @@ static void __init msm8x60_init_dsps(void)
 }
 #endif /* CONFIG_MSM_DSPS */
 
-#define MSM_PMEM_SF_SIZE 0x4600000 /* 70 Mbytes */
+#define MSM_PMEM_SF_SIZE 0x4000000 /* 64 Mbytes */
 
 #define MSM_PMEM_KERNEL_EBI1_SIZE  0x700000
-#define MSM_PMEM_ADSP_SIZE         0x2101000
+#define MSM_PMEM_ADSP_SIZE         0x3000000 /* 48 MB */
 #define MSM_PMEM_AUDIO_SIZE        0x279000
 
 #define MSM_SMI_BASE          0x38000000
@@ -2142,7 +2142,7 @@ static void __init msm8x60_init_dsps(void)
 /* SMI PMEM Region, as the video core will use offset address */
 /* from the Firmware base */
 #define PMEM_KERNEL_SMI_BASE  (MSM_SMI_BASE)
-#define PMEM_KERNEL_SMI_SIZE  0x600000
+#define PMEM_KERNEL_SMI_SIZE  0xc00000
 /* User space SMI PMEM Region for video core*/
 /* used for encoder, decoder input & output buffers  */
 #define MSM_PMEM_SMIPOOL_BASE (PMEM_KERNEL_SMI_BASE + PMEM_KERNEL_SMI_SIZE)
