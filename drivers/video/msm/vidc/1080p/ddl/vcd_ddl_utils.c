@@ -26,8 +26,7 @@ struct time_data {
 static struct time_data proc_time[MAX_TIME_DATA];
 #define DDL_MSG_TIME(x...) printk(KERN_DEBUG x)
 
-//#define DDL_FW_CHANGE_ENDIAN
-#undef DDL_FW_CHANGE_ENDIAN
+#define DDL_FW_CHANGE_ENDIAN
 
 #ifdef DDL_BUF_LOG
 static void ddl_print_buffer(struct ddl_context *ddl_context,
