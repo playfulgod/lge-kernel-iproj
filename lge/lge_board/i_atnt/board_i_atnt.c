@@ -5042,7 +5042,7 @@ static struct pmic8058_pwrkey_pdata pwrkey_pdata = {
 	.pull_up		= 1,
 	.kpd_trigger_delay_us   = 970,
 	.wakeup			= 1,
-	.pwrkey_time_ms		= 500,
+	.pwrkey_time_ms		= 0,
 };
 
 #ifdef CONFIG_PMIC8058_VIBRATOR
