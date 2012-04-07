@@ -214,18 +214,16 @@ void Send_Touch( unsigned int x, unsigned int y)
 		input_report_abs(touch_pdev->input_dev, ABS_MT_POSITION_X, x);
 		input_report_abs(touch_pdev->input_dev, ABS_MT_POSITION_Y, y);
 		input_report_abs(touch_pdev->input_dev, ABS_MT_PRESSURE, 1);
-		input_report_abs(touch_pdev->input_dev, ABS_MT_TOUCH_MAJOR, 1);
 		input_report_abs(touch_pdev->input_dev, ABS_MT_TOUCH_MINOR, 1);
-		input_report_key(touch_pdev->input_dev, BTN_TOUCH, 1);
+		input_report_abs(touch_pdev->input_dev, ABS_MT_TOUCH_MAJOR, 1);
 		input_mt_sync(touch_pdev->input_dev);
 		input_sync(touch_pdev->input_dev);
 
 		input_report_abs(touch_pdev->input_dev, ABS_MT_POSITION_X, x);
 		input_report_abs(touch_pdev->input_dev, ABS_MT_POSITION_Y, y);
 		input_report_abs(touch_pdev->input_dev, ABS_MT_PRESSURE, 0);
-		input_report_abs(touch_pdev->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 		input_report_abs(touch_pdev->input_dev, ABS_MT_TOUCH_MINOR, 0);
-		input_report_key(touch_pdev->input_dev, BTN_TOUCH, 0);
+		input_report_abs(touch_pdev->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 		input_mt_sync(touch_pdev->input_dev);
 		input_sync(touch_pdev->input_dev);
 	}
@@ -331,16 +329,6 @@ static void release_all_ts_event(struct synaptics_ts_data *ts)
 	/* Finger check */
 	for(f_counter = 0; f_counter < ts->pdata->num_of_finger; f_counter++) {
 		if (ts->finger_prestate[f_counter] == TOUCH_PRESSED) {
-			input_report_abs(ts->input_dev,
-					ABS_MT_POSITION_X, ts->pre_ts_data.pos_x[f_counter]);
-			input_report_abs(ts->input_dev,
-					ABS_MT_POSITION_Y, ts->pre_ts_data.pos_y[f_counter]);
-			input_report_abs(ts->input_dev,
-					ABS_MT_PRESSURE, TOUCH_RELEASED);
-			input_report_abs(ts->input_dev,
-					ABS_MT_TOUCH_MAJOR, TOUCH_RELEASED);
-			input_report_key(ts->input_dev, BTN_TOUCH, TOUCH_RELEASED);
-
 			input_mt_sync(ts->input_dev);
 
 			report_enable = 1;
@@ -1412,6 +1400,14 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						width_min = (ts_reg_data.finger_data[f_counter][REG_WY_WX] & 0xF0) >> 4;
 					}
 
+					/* Try to filter out small variations when finger is moving in a very small area (4x3) */
+					if ((((ts->pre_ts_data.pos_x[f_counter] - curr_ts_data.pos_x[f_counter])^2) < 17) &&
+					    ((ts->pre_ts_data.pos_y[f_counter] - curr_ts_data.pos_y[f_counter])^2) < 10) {
+						curr_ts_data.pos_x[f_counter] = ts->pre_ts_data.pos_x[f_counter];
+						curr_ts_data.pos_y[f_counter] = ts->pre_ts_data.pos_y[f_counter];
+					}
+
+
 					curr_ts_data.pressure[f_counter] = ts_reg_data.finger_data[f_counter][REG_Z];
 
 					if (is_chg_plugged_in() && ts->finger_prestate[f_counter] == TOUCH_RELEASED) {
@@ -1448,10 +1444,9 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, curr_ts_data.pos_x[f_counter]);
 					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, curr_ts_data.pos_y[f_counter]);
 					input_report_abs(ts->input_dev, ABS_MT_PRESSURE, curr_ts_data.pressure[f_counter]);
-					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, width_max);
 					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MINOR, width_min);
+					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, width_max);
 					input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, f_counter);
-					input_report_key(ts->input_dev, BTN_TOUCH, curr_ts_data.pressure[f_counter] ? 1 : 0);
 
 					report_enable = 1;
 
@@ -1494,14 +1489,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						SYNAPTICS_INFO_MSG("Finger%d released\n", f_counter);
 
 					ts->finger_prestate[f_counter] = TOUCH_RELEASED;
-
-					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, ts->pre_ts_data.pos_x[f_counter]);
-					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, ts->pre_ts_data.pos_y[f_counter]);
-					input_report_abs(ts->input_dev, ABS_MT_PRESSURE, TOUCH_RELEASED);
-					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, TOUCH_RELEASED);
-					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MINOR, TOUCH_RELEASED);
-					input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, f_counter);
-					input_report_key(ts->input_dev, BTN_TOUCH, TOUCH_RELEASED);
 
 					report_enable = 1;
 
@@ -2005,7 +1992,6 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 	set_bit(EV_SYN, ts->input_dev->evbit);
 	set_bit(EV_KEY, ts->input_dev->evbit);
 	set_bit(EV_ABS, ts->input_dev->evbit);
-	set_bit(BTN_TOUCH, ts->input_dev->keybit);
 
 	for(count = 0; count < ts->pdata->num_of_button; count++) {
 		set_bit(ts->pdata->button[count], ts->input_dev->keybit);
@@ -2014,8 +2000,8 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->pdata->x_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->pdata->y_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 15, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MINOR, 0, 15, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 15, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, 9, 0, 0);
 
 	ret = input_register_device(ts->input_dev);
