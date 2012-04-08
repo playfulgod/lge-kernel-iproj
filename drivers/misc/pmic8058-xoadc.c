@@ -503,6 +503,52 @@ static irqreturn_t pm8058_xoadc(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+//work around code by qualcomm
+#ifdef CONFIG_LGE_PM
+int32_t pm8058_xoadc_clear_recentQ(void) 
+{
+	struct pmic8058_adc *adc_pmic = pmic_adc[XOADC_PMIC_0];
+	struct xoadc_conv_state *slot_state = adc_pmic->conv_queue_list;
+	struct adc_conv_slot *slot = NULL;
+	int rc;
+
+	disable_irq_nosync(adc_pmic->adc_irq);
+	//disable_irq(adc_pmic->adc_irq);
+
+	rc = pm8058_xoadc_dequeue_slot_request(adc_pmic->xoadc_num, &slot);
+
+	if (rc < 0)
+		return IRQ_NONE;
+
+	mutex_lock(&slot_state->list_lock);
+	adc_pmic->xoadc_queue_count--;
+	if (adc_pmic->xoadc_queue_count > 0) {
+		slot = list_first_entry(&slot_state->slots,
+				struct adc_conv_slot, list);
+		pm8058_xoadc_configure(XOADC_PMIC_0, slot);
+	}
+	mutex_unlock(&slot_state->list_lock);
+
+	mutex_lock(&slot_state->list_lock);
+	/* Default value for switching off the arbiter after reading
+	   the ADC value. Bit 0 set to 0. */
+	if (adc_pmic->xoadc_queue_count == 0) {
+		rc = pm8058_xoadc_arb_cntrl(0, XOADC_PMIC_0);
+		if (rc < 0) {
+			pr_debug("%s: Configuring ADC Arbiter disable"
+						"failed\n", __func__);
+			return rc;
+		}
+		if (adc_pmic->pdata->xoadc_vreg_set != NULL)
+			adc_pmic->pdata->xoadc_vreg_set(0);
+	}
+	mutex_unlock(&slot_state->list_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(pm8058_xoadc_clear_recentQ);
+#endif
+
 struct adc_properties *pm8058_xoadc_get_properties(uint32_t dev_instance)
 {
 	struct pmic8058_adc *xoadc_8058 = pmic_adc[dev_instance];

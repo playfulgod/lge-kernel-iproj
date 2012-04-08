@@ -42,7 +42,7 @@ static struct dsi_buf lgit_rx_buf;
 #define LCD_RESET_N	50
 /* minjong.gong@lge.com 2011.03.22,  Modify code to apply IEF function */
 static char dsi_config    [6] = {0xE0, 0x43, 0x00, 0x80, 0x00, 0x00}; // Change the 3rd parameter from 0x40 to 0x00.
-static char display_mode1 [6] = {0xB5, 0x29, 0x20, 0x40, 0x00, 0x00};
+static char display_mode1 [6] = {0xB5, 0x29, 0x20, 0x40, 0x00, 0x20};
 static char display_mode2 [6] = {0xB6, 0x01, 0x14, 0x0F, 0x16, 0x13};
 
 /*shoogi.lee@lge.com 2011.03.31, Modify code to apply 2.2 gamma */

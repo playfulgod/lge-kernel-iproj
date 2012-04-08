@@ -262,9 +262,9 @@ struct k3dh_acc_data {
   int acc_poll_ms;
   int gesture_poll_ms;
   int on_before_suspend;
+  int on_before_early_suspend;
 
   u8 sensitivity;
-
   u8 resume_state[RESUME_ENTRIES];
 
   int irq1;
@@ -961,15 +961,18 @@ static int k3dh_acc_enable(struct k3dh_acc_data *acc, int dev_id)
     int err;
     
     if(DEBUG_FUNC_TRACE & debug_mask)
-		printk(KERN_INFO "%s: line: %d\n",__func__, __LINE__);
+		printk(KERN_INFO "%s: line: %d, id: %d\n",__func__, __LINE__, dev_id);
 
     if(dev_id == ID_RESUME)
     {
 		acc->resume = 1;
    		//if (!atomic_cmpxchg(&acc->enabled, 0, acc->on_before_suspend)) 
-    	if (acc->on_before_suspend)
+    	if(acc->on_before_suspend||acc->on_before_early_suspend)
 		{
+			if(acc->on_before_suspend)
 	    	atomic_set(&acc->enabled, acc->on_before_suspend);
+			else if (acc->on_before_early_suspend)
+				atomic_set(&acc->enabled, acc->on_before_early_suspend);
 		    if(DEBUG_DEV_STATUS & debug_mask)
 				printk(KERN_INFO "%s: line: %d, call power on!\n",__func__, __LINE__);
 		    err = k3dh_acc_device_power_on(acc);
@@ -1032,6 +1035,14 @@ static int k3dh_acc_enable(struct k3dh_acc_data *acc, int dev_id)
 					    msecs_to_jiffies(acc->pdata->poll_interval));
 #endif
 			}
+			else
+			{
+#ifdef CONFIG_LGE_SENSOR_FUSION
+				acc->enable |= (ena_mask[ID_ACC]);
+#else
+				acc->enable |= (ena_mask[dev_id]);
+#endif
+			}
 		}
 		else
 		{
@@ -1054,7 +1065,7 @@ static int k3dh_acc_disable(struct k3dh_acc_data *acc, int dev_id)
 	if(dev_id == ID_RESUME)
 	{
 		acc->resume = 0;
-		if(acc->on_before_suspend)
+		if(acc->on_before_suspend||acc->on_before_early_suspend)
 		{
 			atomic_set(&acc->enabled, 0);
 #ifdef USE_HR_TIMER
@@ -2585,14 +2596,21 @@ static int __devexit k3dh_acc_remove(struct i2c_client *client)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 static void k3dh_acc_early_suspend(struct early_suspend *h)
 {
+	if(DEBUG_FUNC_TRACE & debug_mask)
+	  printk(KERN_INFO "%s: line: %d\n", __func__, __LINE__);
+
+	k3dh_acc_misc_data->on_before_early_suspend = atomic_read(&k3dh_acc_misc_data->enabled);
 	k3dh_acc_disable(k3dh_acc_misc_data, ID_RESUME);
 }
 
 static void k3dh_acc_late_resume(struct early_suspend *h)
 {
+	if(DEBUG_FUNC_TRACE & debug_mask)
+	  printk(KERN_INFO "%s: line: %d\n", __func__, __LINE__);
+
 	k3dh_acc_enable(k3dh_acc_misc_data, ID_RESUME);
 }
-#endif
+#else
 
 #if defined(NEW_DRIVER)
 static int k3dh_acc_resume(struct i2c_client *client)
@@ -2640,6 +2658,7 @@ static int k3dh_acc_suspend(struct i2c_client *client, pm_message_t mesg)
 	return k3dh_acc_disable(acc);
 }
 #endif /* NEW_DRIVER */
+#endif
 
 static const struct i2c_device_id k3dh_acc_id[]
   = { { K3DH_ACC_DEV_NAME, 0 }, { }, };
@@ -2652,8 +2671,10 @@ static struct i2c_driver k3dh_acc_driver = {
   },
   .probe = k3dh_acc_probe,
   .remove = __devexit_p(k3dh_acc_remove),
+#ifndef CONFIG_HAS_EARLYSUSPEND
   .resume = k3dh_acc_resume,
   .suspend = k3dh_acc_suspend,
+#endif
   .id_table = k3dh_acc_id,
 };
 

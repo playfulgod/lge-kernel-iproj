@@ -17,7 +17,6 @@
  *
  */
 
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -358,6 +357,14 @@ static ssize_t print_switch_state_for_autorun(struct switch_dev *sdev, char *buf
 }
 #endif
 
+#ifdef CONFIG_LGE_PM
+#define MSM_CHARGER_GAUGE_MISSING_TEMP_ADC 1000
+#define MSM_CHARGER_GAUGE_MISSING_TEMP       35
+#define MSM_PMIC_ADC_READ_TIMEOUT          3000
+#define CHANNEL_ADC_ACC_MISSING            2200
+extern int32_t pm8058_xoadc_clear_recentQ(void);
+struct wake_lock acc_wake_lock;
+#endif
 #ifdef CONFIG_LGE_PM_CURRENT_CABLE_TYPE
 static int acc_read_adc(int channel, int *mv_reading)
 {
@@ -365,6 +372,10 @@ static int acc_read_adc(int channel, int *mv_reading)
 	void *h;
 	struct adc_chan_result adc_chan_result;
 	struct completion  conv_complete_evt;
+#ifdef CONFIG_LGE_PM
+    int wait_ret;
+    wake_lock(&acc_wake_lock);
+#endif
 
 	ret = adc_channel_open(channel, &h);
 	if (ret) {
@@ -379,7 +390,16 @@ static int acc_read_adc(int channel, int *mv_reading)
 						__func__, channel, ret);
 		goto out;
 	}
+#ifdef CONFIG_LGE_PM
+    wait_ret = wait_for_completion_timeout(&conv_complete_evt, msecs_to_jiffies(MSM_PMIC_ADC_READ_TIMEOUT));
+    if(wait_ret <= 0)
+    {
+		printk(KERN_ERR "===%s: failed to adc wait for completion!===\n",__func__);
+        goto sanity_out;
+    }
+#else
 	wait_for_completion(&conv_complete_evt);
+#endif
 	ret = adc_channel_read_result(h, &adc_chan_result);
 	if (ret) {
 		pr_err("%s: couldnt read result channel %d ret=%d\n",
@@ -394,11 +414,41 @@ static int acc_read_adc(int channel, int *mv_reading)
 	if (mv_reading)
 		*mv_reading = adc_chan_result.measurement;
 
+#ifdef CONFIG_LGE_PM
+    wake_unlock(&acc_wake_lock);
+#endif
 	return adc_chan_result.physical;
 out:
 	pr_debug("%s: done for %d\n", __func__, channel);
+#ifdef CONFIG_LGE_PM
+    if(ret == -EBUSY)
+        adc_channel_close(h);
+    wake_unlock(&acc_wake_lock);
+#endif
 	return -EINVAL;
 
+#ifdef CONFIG_LGE_PM
+sanity_out:
+    pm8058_xoadc_clear_recentQ();
+	ret = adc_channel_close(h);
+    wake_unlock(&acc_wake_lock);
+	if (ret) {
+		pr_err("%s: couldnt close channel %d ret=%d\n",
+						__func__, channel, ret);
+	}
+    if(channel == CHANNEL_ADC_ACC)
+    {
+        printk(KERN_ERR "============== ACC adc read fail so default usb ===============\n");
+	    if (mv_reading)
+		    *mv_reading = MSM_CHARGER_GAUGE_MISSING_TEMP_ADC;
+        return CHANNEL_ADC_ACC_MISSING;
+    }
+    else
+    {
+        printk(KERN_ERR "============== adc read fail  ===============\n");
+	    return -EINVAL;
+    }
+#endif
 }
 
 static acc_cable_type get_ta_cable_type(void)
@@ -439,7 +489,7 @@ static acc_cable_type get_ta_cable_type(void)
 	{
 		cable_type = TA_CABLE_DTC_800MA;
 	}
-#ifdef CONFIG_MACH_LGE_I_BOARD_ATNT
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
 	else if((2000<=acc_read_value)&&(acc_read_value<=2200)) // 0K, 800mA TA(1.2A) cable
 	{
 		cable_type = TA_CABLE_800MA;
@@ -483,7 +533,7 @@ static acc_cable_type get_usb_cable_type(void)
 		cable_type = ABNORMAL_USB_CABLE_400MA;
 	}
 #else	
-#ifdef CONFIG_MACH_LGE_I_BOARD_ATNT
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
 	if((370<=acc_read_value)&&(acc_read_value<=600)) // 56k ==>LT cable, maximum current
     {
 		cable_type = LT_CABLE_56K;
@@ -510,7 +560,7 @@ static acc_cable_type get_usb_cable_type(void)
 	{
 		cable_type = USB_CABLE_DTC_500MA;
 	}
-#ifdef CONFIG_MACH_LGE_I_BOARD_ATNT
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
     else if((1690<=acc_read_value)&&(acc_read_value<=1920)) // 910k ==>LT cable, maximum current
 	{
 		cable_type = LT_CABLE_56K; // Actually 910k, but run like 56k
@@ -1901,7 +1951,7 @@ static void usb_reset(struct usb_info *ui)
         android_get_product_id() == lg_factory_pid)
     {
         pr_info("%s: android_set_pid_without_reset(%s)\n", __func__, usb_pid);
-        android_set_pid_without_reset(usb_pid, usb_cable_type);
+    android_set_pid_without_reset(usb_pid, usb_cable_type);
     }
 #endif
 
@@ -3067,6 +3117,9 @@ static int msm72k_probe(struct platform_device *pdev)
 	wake_lock_init(&ui->wlock,
 			WAKE_LOCK_SUSPEND, "usb_bus_active");
 
+#ifdef CONFIG_LGE_PM
+    wake_lock_init(&acc_wake_lock, WAKE_LOCK_SUSPEND, "usb_acc");
+#endif
 	usb_debugfs_init(ui);
 
 	usb_prepare(ui);

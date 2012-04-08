@@ -402,12 +402,23 @@ irqreturn_t mhl_wake_up_irq_handler(int irq, void *dev_id)
 }
 
 #ifdef TIMER_ACC_ADC
+#ifdef CONFIG_LGE_PM
+#define MSM_CHARGER_GAUGE_MISSING_TEMP_ADC 1000
+#define MSM_CHARGER_GAUGE_MISSING_TEMP       35
+#define MSM_PMIC_ADC_READ_TIMEOUT          3000
+#define CHANNEL_ADC_ACC_MISSING            2200
+extern int32_t pm8058_xoadc_clear_recentQ(void);
+#endif
+
 static int batt_read_adc(int channel, int *mv_reading)
 {
 	int ret;
 	void *h;
 	struct adc_chan_result adc_chan_result;
 	struct completion  conv_complete_evt;
+#ifdef CONFIG_LGE_PM
+    int wait_ret;
+#endif
 
 	pr_debug("%s: called for %d\n", __func__, channel);
 	ret = adc_channel_open(channel, &h);
@@ -423,7 +434,17 @@ static int batt_read_adc(int channel, int *mv_reading)
 						__func__, channel, ret);
 		goto out;
 	}
+#ifdef CONFIG_LGE_PM
+    wait_ret = wait_for_completion_timeout(&conv_complete_evt, msecs_to_jiffies(MSM_PMIC_ADC_READ_TIMEOUT));
+    if(wait_ret <= 0)
+    {
+		printk(KERN_ERR "===%s: failed to adc wait for completion!===\n",__func__);
+        goto sanity_out;
+    }
+#else
 	wait_for_completion(&conv_complete_evt);
+#endif
+
 	ret = adc_channel_read_result(h, &adc_chan_result);
 	if (ret) {
 		pr_err("%s: couldnt read result channel %d ret=%d\n",
@@ -444,6 +465,35 @@ out:
 	pr_debug("%s: done for %d\n", __func__, channel);
 	return -EINVAL;
 
+#ifdef CONFIG_LGE_PM
+sanity_out:
+
+    pm8058_xoadc_clear_recentQ();
+
+	ret = adc_channel_close(h);
+	if (ret) {
+		pr_err("%s: couldnt close channel %d ret=%d\n",
+						__func__, channel, ret);
+	}
+    
+    if(channel == CHANNEL_ADC_BATT_THERM)
+    {
+        printk(KERN_ERR "============== batt temp adc read fail so default temp ===============\n");
+	    if (mv_reading)
+		    *mv_reading = MSM_CHARGER_GAUGE_MISSING_TEMP_ADC;
+        return MSM_CHARGER_GAUGE_MISSING_TEMP;
+    }
+    else if(channel == CHANNEL_ADC_ACC)
+    {
+        printk(KERN_ERR "============== ACC adc read fail so default usb ===============\n");
+        return CHANNEL_ADC_ACC_MISSING;
+    }
+    else
+    {
+        printk(KERN_ERR "============== adc read fail  ===============\n");
+	    return -EINVAL;
+    }
+#endif
 }
 
 

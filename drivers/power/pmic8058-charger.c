@@ -135,6 +135,7 @@
 #define AUTO_CHARGING_VBATDET_DEBOUNCE_TIME_MS		3000
 #define AUTO_CHARGING_VEOC_VBATDET			4100
 #endif
+
 #define AUTO_CHARGING_VEOC_TCHG				16
 #define AUTO_CHARGING_VEOC_TCHG_FINAL_CYCLE		32
 #define AUTO_CHARGING_VEOC_BEGIN_TIME_MS		5400000
@@ -811,7 +812,7 @@ static int __pm8058_start_charging(int chg_current, int termination_current,
 	if (ret)
 		goto out;
 #ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
-#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT)
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
 	if (lge_bd_rev < LGE_REV_C) {
 		pr_info("Test....................................................pcb rev.B\n");
 		ret = pm_chg_batt_temp_disable(1);
@@ -938,7 +939,7 @@ static int pm8058_start_charging(struct msm_hardware_charger *hw_chg,
 #ifdef CONFIG_LGE_PM_CURRENT_CABLE_TYPE
 // for charging scenario.
 #else
-#ifdef CONFIG_MACH_LGE_I_BOARD_ATNT
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
 	if (chg_current >= 800)
 		chg_current = 800;
 	else if (chg_current >= 400)
@@ -1794,6 +1795,7 @@ static int pm8058_stop_charging(struct msm_hardware_charger *hw_chg)
 
 	return 0;
 }
+
 #ifdef CONFIG_LGE_AT_COMMAND_ABOUT_POWER
 int pm8058_stop_charging_for_ATCMD(void)
 {
@@ -2080,23 +2082,36 @@ static void remove_debugfs_entries(void)
 }
 
 static struct msm_hardware_charger usb_hw_chg = {
-	.type			= CHG_TYPE_USB,
-	.rating			= 1,
-	.name			= "pm8058-usb",
-	.start_charging		= pm8058_start_charging,
-	.stop_charging		= pm8058_stop_charging,
-	.charging_switched	= pm8058_charging_switched,
+	.type = CHG_TYPE_USB,
+	.rating = 1,
+	.name = "pm8058-usb",
+	.start_charging = pm8058_start_charging,
+	.stop_charging = pm8058_stop_charging,
+	.charging_switched = pm8058_charging_switched,
 	.start_system_current	= pm8058_start_system_current,
 	.stop_system_current	= pm8058_stop_system_current,
 };
 
+#ifdef CONFIG_LGE_PM
+#define MSM_CHARGER_GAUGE_MISSING_TEMP_ADC 1000
+#define MSM_CHARGER_GAUGE_MISSING_TEMP       35
+#define MSM_PMIC_ADC_READ_TIMEOUT          3000
+#define CHANNEL_ADC_ACC_MISSING            2200
+extern int32_t pm8058_xoadc_clear_recentQ(void);
+extern struct wake_lock adc_wake_lock;
+//for suspend reume work around code 
+static int g_temp = MSM_CHARGER_GAUGE_MISSING_TEMP;
+#endif
 static int batt_read_adc(int channel, int *mv_reading)
 {
 	int ret;
 	void *h;
 	struct adc_chan_result adc_chan_result;
 	struct completion  conv_complete_evt;
-
+#ifdef CONFIG_LGE_PM
+    int wait_ret;
+    wake_lock(&adc_wake_lock);
+#endif
 	pr_debug("%s: called for %d\n", __func__, channel);
 	ret = adc_channel_open(channel, &h);
 	if (ret) {
@@ -2111,7 +2126,16 @@ static int batt_read_adc(int channel, int *mv_reading)
 						__func__, channel, ret);
 		goto out;
 	}
+#ifdef CONFIG_LGE_PM
+    wait_ret = wait_for_completion_timeout(&conv_complete_evt, msecs_to_jiffies(MSM_PMIC_ADC_READ_TIMEOUT));
+    if(wait_ret <= 0)
+    {
+		printk(KERN_ERR "===%s: failed to adc wait for completion!===\n",__func__);
+        goto sanity_out;
+    }
+#else
 	wait_for_completion(&conv_complete_evt);
+#endif
 	ret = adc_channel_read_result(h, &adc_chan_result);
 	if (ret) {
 		pr_err("%s: couldnt read result channel %d ret=%d\n",
@@ -2127,10 +2151,53 @@ static int batt_read_adc(int channel, int *mv_reading)
 		*mv_reading = adc_chan_result.measurement;
 
 	pr_debug("%s: done for %d\n", __func__, channel);
+#ifdef CONFIG_LGE_PM
+    wake_unlock(&adc_wake_lock);
+    if(channel == CHANNEL_ADC_BATT_THERM)
+    g_temp = adc_chan_result.physical;
+#endif
 	return adc_chan_result.physical;
 out:
 	pr_debug("%s: done for %d\n", __func__, channel);
+#ifdef CONFIG_LGE_PM
+    if(ret == -EBUSY)
+        adc_channel_close(h);
+    
+    wake_unlock(&adc_wake_lock);
+#endif
 	return -EINVAL;
+
+#ifdef CONFIG_LGE_PM
+sanity_out:
+
+    pm8058_xoadc_clear_recentQ();
+
+	ret = adc_channel_close(h);
+
+    wake_unlock(&adc_wake_lock);
+	if (ret) {
+		pr_err("%s: couldnt close channel %d ret=%d\n",
+						__func__, channel, ret);
+	}
+    
+    if(channel == CHANNEL_ADC_BATT_THERM)
+    {
+        printk(KERN_ERR "============== batt temp adc read fail so default temp ===============\n");
+	    if (mv_reading)
+		    *mv_reading = MSM_CHARGER_GAUGE_MISSING_TEMP_ADC;
+        return MSM_CHARGER_GAUGE_MISSING_TEMP;
+    }
+    else if(channel == CHANNEL_ADC_ACC)
+    {
+        printk(KERN_ERR "============== ACC adc read fail so default usb ===============\n");
+        return CHANNEL_ADC_ACC_MISSING;
+    }
+    else
+    {
+        printk(KERN_ERR "============== adc read fail  ===============\n");
+	    return -EINVAL;
+    }
+#endif
 
 }
 
@@ -2145,7 +2212,7 @@ static int pm8058_is_battery_present(void)
 
 	mv_reading = 0;
 	batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-	pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
+	pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
 	if (mv_reading > 0 && mv_reading < BATT_THERM_OPEN_MV)
 		return 1;
 
@@ -2218,7 +2285,7 @@ static int pm8058_get_battery_temperature_adc(void)
     }
 #else
     batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-    pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
+    pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
     return mv_reading;
 #endif
 }
@@ -2254,7 +2321,7 @@ static int pm8058_is_battery_id_valid(void)
 
     batt_id = battery_info_get();
 
-	pr_debug("%s: batt_id is %x\n", __func__, batt_id);
+	pr_err("%s: batt_id is %x\n", __func__, batt_id);
 
 //skt board can't read batt id. check plz
 #ifdef CONFIG_MACH_LGE_I_BOARD_SKT
@@ -2306,7 +2373,9 @@ static int pm8058_get_battery_mvolts(void)
 	int vbatt_mv;
 
 #ifdef CONFIG_LGE_FUEL_GAUGE
-	max17040_update_rcomp(batt_read_adc(CHANNEL_ADC_BATT_THERM, NULL));
+//	max17040_update_rcomp(batt_read_adc(CHANNEL_ADC_BATT_THERM, NULL));
+	max17040_update_rcomp(g_temp);
+
 	vbatt_mv = max17040_get_battery_mvolts();
 #else
 	vbatt_mv = batt_read_adc(CHANNEL_ADC_VBATT, NULL);
@@ -2461,7 +2530,7 @@ static int __devinit pm8058_charger_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
-#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT)
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
 	if (lge_bd_rev < LGE_REV_C) {
 		pr_info("Test....................................................pcb rev.B\n");
 		pm_chg_batt_temp_disable(1);

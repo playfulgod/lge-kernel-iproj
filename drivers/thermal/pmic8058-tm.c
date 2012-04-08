@@ -140,6 +140,13 @@ pm8058_tm_shutdown_override(struct pm8058_chip *chip,
 	return rc;
 }
 
+#ifdef CONFIG_LGE_PM
+#define MSM_CHARGER_GAUGE_MISSING_TEMP_ADC 1000
+#define MSM_CHARGER_GAUGE_MISSING_TEMP       35
+#define MSM_PMIC_ADC_READ_TIMEOUT          3000
+extern int32_t pm8058_xoadc_clear_recentQ(void);
+#endif
+
 static int pm8058_tz_get_temp(struct thermal_zone_device *thermal,
 			      unsigned long *temp)
 {
@@ -149,6 +156,9 @@ static int pm8058_tz_get_temp(struct thermal_zone_device *thermal,
 		.physical = 0lu,
 	};
 	int rc;
+#ifdef CONFIG_LGE_PM
+    int wait_ret;
+#endif
 
 	if (!tm || !temp)
 		return -EINVAL;
@@ -162,7 +172,16 @@ static int pm8058_tz_get_temp(struct thermal_zone_device *thermal,
 		return rc;
 	}
 
+#ifdef CONFIG_LGE_PM
+    wait_ret = wait_for_completion_timeout(&wait, msecs_to_jiffies(MSM_PMIC_ADC_READ_TIMEOUT));
+    if(wait_ret <= 0)
+    {
+		printk(KERN_ERR "===%s: failed to adc wait for completion!===\n",__func__);
+        goto sanity_out;
+    }
+#else
 	wait_for_completion(&wait);
+#endif
 
 	rc = adc_channel_read_result(tm->adc_handle, &adc_result);
 	if (rc < 0) {
@@ -175,6 +194,19 @@ static int pm8058_tz_get_temp(struct thermal_zone_device *thermal,
 	tm->temp = adc_result.physical;
 
 	return 0;
+
+#ifdef CONFIG_LGE_PM
+sanity_out:
+
+    pm8058_xoadc_clear_recentQ();
+
+	*temp = MSM_CHARGER_GAUGE_MISSING_TEMP;
+	tm->temp = MSM_CHARGER_GAUGE_MISSING_TEMP;
+    
+    printk(KERN_ERR "============== batt temp adc read fail so default temp ===============\n");
+    return 0;
+#endif    
+
 }
 
 static int pm8058_tz_get_mode(struct thermal_zone_device *thermal,

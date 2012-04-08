@@ -56,7 +56,7 @@ enum {
 	AMI306_DEBUG_SYSFS_INFO		= 1U << 7,
 };
 
-static unsigned int ami306_debug_mask = AMI306_DEBUG_USER_ERROR|AMI306_DEBUG_SYSFS_INFO;
+static unsigned int ami306_debug_mask = AMI306_DEBUG_USER_ERROR;
 
 module_param_named(debug_mask, ami306_debug_mask, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
@@ -141,7 +141,6 @@ static atomic_t dev_open_count;
 static atomic_t hal_open_count;
 static atomic_t daemon_open_count;
 static u32 report_cnt = 0;
-
 
 static u8 i2c_read_addr, i2c_read_len;
 
@@ -355,10 +354,10 @@ static int Identify_AMI_Chipset(void)
 {
 	char strbuf[AMI306_BUFSIZE];
 	int WIARet = 0;
-	int ret;
+//	int ret = 0;
 	
-	if( (ret=AMI306_WIA(strbuf, AMI306_BUFSIZE))!=0 )
-		return ret;
+//	if( (ret=AMI306_WIA(strbuf, AMI306_BUFSIZE))!=0 )
+//		return ret;
 		
 	sscanf(strbuf, "%x", &WIARet);	
 	
@@ -652,6 +651,7 @@ static int AMI306_Report_Value(int iEnable)
 
 	if (report_enable)
 		input_sync(data->input_dev);
+
 	return 0;
 }
 
@@ -698,7 +698,6 @@ static ssize_t show_sensordata_value2(struct device *dev,
 	
 	return sprintf(buf, "%d/%d/%d\n", strbuf[0],strbuf[1],strbuf[2]);
 }
-
 
 static ssize_t show_posturedata_value(struct device *dev, 
 		struct device_attribute *attr, char *buf)
@@ -939,7 +938,6 @@ static ssize_t show_report_cnt(struct device *dev, struct device_attribute *attr
 	else
 		return sprintf(buf, "%d\n", -1);
 }
-
 
 static DEVICE_ATTR(chipinfo, S_IRUGO, show_chipinfo_value, NULL);
 static DEVICE_ATTR(sensordata, S_IRUGO, show_sensordata_value, NULL);

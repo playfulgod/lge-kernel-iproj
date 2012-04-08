@@ -182,6 +182,8 @@ static struct pseudo_batt_info_type pseudo_batt_info = {
 static int block_charging_state = 1; //  1 : charging , 0: block charging
 
 static int charging_flow_monitor_enable = 1; //for debugging log
+
+struct wake_lock adc_wake_lock;
 #endif
 
 #ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
@@ -485,7 +487,6 @@ static char *msm_power_supplied_to[] = {
 #if defined(CONFIG_MACH_LGE_I_BOARD_DCM) && defined(CONFIG_LGE_SWITCHING_CHARGER_BQ24160_DOCOMO_ONLY)
 extern bool bq24160_charger_get_type(void);
 #endif
-
 static int msm_power_get_property(struct power_supply *psy,
 				  enum power_supply_property psp,
 				  union power_supply_propval *val)
@@ -501,7 +502,6 @@ static int msm_power_get_property(struct power_supply *psy,
 		if (psy->type == POWER_SUPPLY_TYPE_USB)
 			val->intval = (usb_chg_type == 3); /* not fixed */
 #endif
-
 		break;
 	default:
 			return -EINVAL;
@@ -844,14 +844,12 @@ static void notify_usb_of_the_plugin_event(struct msm_hardware_charger_priv
 int old_soc;
 extern int is_chg_plugged_in(void);
 extern int max17040_get_battery_capacity_percent(void);
-
 static unsigned int msm_chg_get_batt_capacity_percent(void)
 {
 #ifdef CONFIG_LGE_FUEL_GAUGE
   if(lge_bd_rev > LGE_REV_B)
   {
 	  int soc = max17040_get_battery_capacity_percent();
-
 	  if (!is_chg_plugged_in()) 
     {
 		  if (old_soc < soc) 
@@ -872,13 +870,11 @@ static unsigned int msm_chg_get_batt_capacity_percent(void)
   {
 #ifdef CONFIG_LGE_FUEL_GAUGE
 	  extern int max17040_get_battery_capacity_percent(void);
-
 	  return max17040_get_battery_capacity_percent();
 #else
 	  unsigned int current_voltage = get_prop_battery_mvolts();
 	  unsigned int low_voltage = msm_chg.min_voltage;
 	  unsigned int high_voltage = msm_chg.max_voltage;
-
 	  if (current_voltage <= low_voltage)
 		  return 0;
 	  else if (current_voltage >= high_voltage)
@@ -917,7 +913,6 @@ static unsigned int msm_chg_get_batt_capacity_percent(void)
 #endif
 }
 #endif
-
 
 #ifdef DEBUG
 static inline void debug_print(const char *func,
@@ -1577,7 +1572,7 @@ static void update_heartbeat(struct work_struct *work)
 case 2: charging is started in hot or cold case and then if temp is normal, we should call pm_chg_auto_disable(0)
 case 3 : charging is started in case of normal ==> should not call pm_chg_auto_disable(0) because charging is already started.
 case 4 : charging is started in normal case and then if temp is very hot/cold, we should call pm_chg_auto_disable(1) */
-#if defined(CONFIG_MACH_LGE_I_BOARD_DCM) || defined(CONFIG_MACH_LGE_I_BOARD_ATNT)
+#if defined(CONFIG_MACH_LGE_I_BOARD_DCM) || defined(CONFIG_MACH_LGE_I_BOARD_ATNT) || defined(CONFIG_MACH_LGE_I_BOARD_BELL) || defined(CONFIG_MACH_LGE_I_BOARD_TLS)
     if (lge_bd_rev < LGE_REV_C) 
     {
       stop_charging = 0;
@@ -2143,24 +2138,6 @@ static int __init determine_initial_batt_status(void)
 	pr_err("%s:OK batt_status=%d\n", __func__, msm_chg.batt_status);
 	return 0;
 }
-/* LGE_UPDATE_S, WAKE_LOCK_SUSPEND, roy.park@lge.com, 2011/05/25 -->[ */
-#if 0
-extern int abnormal_vl;
-static ssize_t abnormal_wakelock_show(struct device* dev, struct device_attribute* attr, char* buf)
-{
-	return sprintf(buf,"%d\n", abnormal_vl);
-}
-
-static DEVICE_ATTR(abnormal_wakelock, S_IRUGO, abnormal_wakelock_show, NULL);
-static struct attribute* dev_attrs[] = {
-	&dev_attr_abnormal_wakelock.attr,
-	NULL,
-};
-static struct attribute_group dev_attr_grp = {
-	.attrs = dev_attrs,
-};
-#endif
-/* LGE_UPDATE_E, WAKE_LOCK_SUSPEND,  <--] */
 
 #ifdef CONFIG_LGE_AT_COMMAND_ABOUT_POWER
 extern int pm8058_start_charging_for_ATCMD(void);
@@ -2369,11 +2346,11 @@ static ssize_t at_fuel_guage_reset_show(struct device *dev, struct device_attrib
 {
 	int r = 0;
 
-	max17040_set_battery_atcmd(0, 100);  // Reset the fuel guage IC
+  max17040_set_battery_atcmd(0, 100);  // Reset the fuel guage IC
 
-	r = sprintf(buf, "%d\n", true);
+  r = sprintf(buf, "%d\n", true);
 
-	max17040_set_battery_atcmd(2, 100);  // Release the AT command mode
+  max17040_set_battery_atcmd(2, 100);  // Release the AT command mode
 	
 	return r;
 }
@@ -2384,9 +2361,9 @@ static ssize_t at_fuel_guage_level_show(struct device *dev, struct device_attrib
 	int r = 0;
 	int guage_level = 0;
 
-	guage_level = max17040_get_battery_capacity_percent();
+  guage_level = max17040_get_battery_capacity_percent();
 
-	r = sprintf(buf, "%d\n", guage_level);
+  r = sprintf(buf, "%d\n", guage_level);
 	
 	return r;
 }
@@ -2395,7 +2372,7 @@ static ssize_t at_pmic_reset_show(struct device *dev, struct device_attribute *a
 {
 	int r = 0;
 
-	msleep(500); //for waiting return values of testmode
+    msleep(500);
 
 	machine_restart(NULL);
 
@@ -2534,18 +2511,6 @@ static int __devinit msm_charger_probe(struct platform_device *pdev)
 	mutex_init(&msm_chg.status_lock);
 	INIT_DELAYED_WORK(&msm_chg.teoc_work, teoc);
 	INIT_DELAYED_WORK(&msm_chg.update_heartbeat_work, update_heartbeat);
-	/* LGE_UPDATE_S, WAKE_LOCK_SUSPEND, roy.park@lge.com, 2011/05/25 -->[ */
-#if 0
-	{
-		int rc;	
-		rc = sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp);
-		if(rc < 0) {
-			dev_err(&pdev->dev,
-				"%s: msm_charger_probe  failed rc=%d\n", __func__, rc);
-		}
-	}
-#endif
-	/* LGE_UPDATE_E, WAKE_LOCK_SUSPEND,  <--] */
 
 /* [LGE_UPDATE_S kyungho.kong@lge.com] */
 #ifdef CONFIG_LGE_PM_TEMPERATURE_MONITOR
@@ -2563,6 +2528,10 @@ static int __devinit msm_charger_probe(struct platform_device *pdev)
   queue_work(msm_chg.event_wq_thread, &msm_chg.monitor_work);
 #endif
 /* [LGE_UPDATE_E kyungho.kong@lge.com] */
+
+#ifdef CONFIG_LGE_PM
+     wake_lock_init(&adc_wake_lock, WAKE_LOCK_SUSPEND, "pmic8058_adc");
+#endif
 
 #ifdef CONFIG_LGE_AT_COMMAND_ABOUT_POWER
   err = device_create_file(&pdev->dev, &dev_attr_at_charge);

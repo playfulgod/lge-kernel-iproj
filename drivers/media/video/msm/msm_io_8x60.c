@@ -665,8 +665,10 @@ static void msm_camio_csi_disable(void)
 	CDBG("%s MIPI_PHY_D0_CONTROL2 val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D1_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
+	//msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
+	//msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
+	msm_io_w(0x00000000, csibase + MIPI_PHY_D2_CONTROL2);
+	msm_io_w(0x00000000, csibase + MIPI_PHY_D3_CONTROL2);
 
 	CDBG("%s MIPI_PHY_CL_CONTROL val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PHY_CL_CONTROL);
@@ -832,9 +834,11 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 
 	/* mask out ID_ERROR[19], DATA_CMM_ERR[11]
 	and CLK_CMM_ERR[10] - de-featured */
-	msm_io_w(0xF017F3C0, csibase + MIPI_INTERRUPT_MASK);
+	//msm_io_w(0xF017F3C0, csibase + MIPI_INTERRUPT_MASK);
+	msm_io_w(0x3017F3C0, csibase + MIPI_INTERRUPT_MASK);
 	/*clear IRQ bits*/
-	msm_io_w(0xF017F3C0, csibase + MIPI_INTERRUPT_STATUS);
+	//msm_io_w(0xF017F3C0, csibase + MIPI_INTERRUPT_STATUS);
+	msm_io_w(0x3017F3C0, csibase + MIPI_INTERRUPT_STATUS);
 
 	return rc;
 }
