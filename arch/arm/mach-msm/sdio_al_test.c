@@ -3519,15 +3519,6 @@ static struct platform_driver sdio_dun_drv = {
 	},
 };
 
-static struct platform_driver sdio_ciq_drv = {
-	.probe		= sdio_test_channel_probe,
-	.remove		= sdio_test_channel_remove,
-	.driver		= {
-		.name	= "SDIO_CIQ_TEST",
-		.owner	= THIS_MODULE,
-	},
-};
-
 static struct class *test_class;
 
 const struct file_operations test_fops = {
@@ -3596,7 +3587,6 @@ static int __init test_init(void)
 	platform_driver_register(&sdio_smem_drv);
 	platform_driver_register(&sdio_rmnt_drv);
 	platform_driver_register(&sdio_dun_drv);
-	platform_driver_register(&sdio_ciq_drv);
 
 	return ret;
 }
@@ -3624,7 +3614,6 @@ static void __exit test_exit(void)
 	platform_driver_unregister(&sdio_smem_drv);
 	platform_driver_unregister(&sdio_rmnt_drv);
 	platform_driver_unregister(&sdio_dun_drv);
-	platform_driver_unregister(&sdio_ciq_drv);
 
 	for (i = 0; i < SDIO_MAX_CHANNELS; i++) {
 		struct test_channel *tch = test_ctx->test_ch_arr[i];
