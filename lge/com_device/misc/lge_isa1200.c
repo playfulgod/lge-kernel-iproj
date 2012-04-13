@@ -217,7 +217,7 @@ static void lge_isa1200_vibrator_enable(struct timed_output_dev *dev, int value)
 	int ret;
 */
 
-	dev_info(dev->dev, "%s(%d)\n", __func__, value);
+	dev_dbg(dev->dev, "%s(%d)\n", __func__, value);
 /*
 	ret = mutex_lock_interruptible(&context->lock);
 	if (ret > 0) {
