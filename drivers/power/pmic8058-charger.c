@@ -2212,7 +2212,7 @@ static int pm8058_is_battery_present(void)
 
 	mv_reading = 0;
 	batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-	pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
+	pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
 	if (mv_reading > 0 && mv_reading < BATT_THERM_OPEN_MV)
 		return 1;
 
@@ -2269,7 +2269,7 @@ static int pm8058_get_battery_temperature_adc(void)
     else
     {
 	batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-	pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
+	pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
 	return mv_reading;
     }
 #elif defined(CONFIG_MACH_LGE_I_BOARD_SKT)
@@ -2280,12 +2280,12 @@ static int pm8058_get_battery_temperature_adc(void)
     else
     {
 	batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-	pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
+	pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
 	return mv_reading;
     }
 #else
     batt_read_adc(CHANNEL_ADC_BATT_THERM, &mv_reading);
-    pr_err("%s: therm_raw is %d\n", __func__, mv_reading);
+    pr_debug("%s: therm_raw is %d\n", __func__, mv_reading);
     return mv_reading;
 #endif
 }
@@ -2303,7 +2303,7 @@ static int pm8058_is_battery_temp_within_range(void)
 	int therm_celcius;
 
 	therm_celcius = pm8058_get_battery_temperature();
-	pr_err("%s: therm_celcius is %d\n", __func__, therm_celcius);
+	pr_debug("%s: therm_celcius is %d\n", __func__, therm_celcius);
 #ifndef CONFIG_LGE_FUEL_GAUGE 
 	if (therm_celcius > 0
 		&& therm_celcius > BATT_THERM_OPERATIONAL_MIN_CELCIUS
@@ -2321,7 +2321,7 @@ static int pm8058_is_battery_id_valid(void)
 
     batt_id = battery_info_get();
 
-	pr_err("%s: batt_id is %x\n", __func__, batt_id);
+	pr_debug("%s: batt_id is %x\n", __func__, batt_id);
 
 //skt board can't read batt id. check plz
 #ifdef CONFIG_MACH_LGE_I_BOARD_SKT
@@ -2346,7 +2346,7 @@ static int pm8058_is_battery_id_valid(void)
 	int batt_id_mv;
 
 	batt_id_mv = batt_read_adc(CHANNEL_ADC_BATT_ID, NULL);
-	pr_err("%s: batt_id_mv is %d\n", __func__, batt_id_mv);
+	pr_debug("%s: batt_id_mv is %d\n", __func__, batt_id_mv);
 
 	/*
 	 * The readings are not in range
@@ -2618,7 +2618,7 @@ static int __devinit pm8058_charger_probe(struct platform_device *pdev)
 
 	pm8058_chg.inited = 1;
 
-	pr_err("%s: pm8058_charger_probe OK\n", __func__);
+	pr_debug("%s: pm8058_charger_probe OK\n", __func__);
 
 	return 0;
 

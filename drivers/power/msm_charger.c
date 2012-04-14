@@ -1165,7 +1165,7 @@ static int chg_is_battery_too_hot_or_too_cold(int temp_adc, int batt_level)
             chg_batt_temp_state = CHG_BATT_NORMAL_STATE;
 			if(charging_flow_monitor_enable == 1)
 			{
-				pr_err("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
+				pr_debug("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
 			  				__func__,CHG_BATT_NORMAL_STATE, temp_adc,batt_level);
             }
 			
@@ -1293,7 +1293,7 @@ static int chg_is_battery_too_hot_or_too_cold(int temp_adc, int batt_level)
             chg_batt_temp_state = CHG_BATT_NORMAL_STATE;			
 			if(charging_flow_monitor_enable == 1)
 			{
-				pr_err("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
+				pr_debug("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
 							__func__,CHG_BATT_DC_CURRENT_STATE, temp_adc,batt_level);
             }
 			rtnValue = 0;	
@@ -1390,7 +1390,7 @@ static int chg_is_battery_too_hot_or_too_cold(int temp_adc, int batt_level)
 			chg_batt_temp_state = CHG_BATT_NORMAL_STATE;
 			if(charging_flow_monitor_enable == 1)
 			{
-				pr_err("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
+				pr_debug("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
 							__func__,CHG_BATT_STOP_CHARGING_STATE, temp_adc,batt_level);
 	        }
 			
