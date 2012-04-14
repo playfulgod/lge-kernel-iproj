@@ -2768,7 +2768,7 @@ struct regulator *pm8058_l15; //for Proximity, RPM_VREG_ID_PM8058_L15
 static int power_set_for_8058_l15(unsigned char onoff)
 {
 	int rc = -EINVAL;
-	printk(KERN_INFO "%s: prox/als power line: %d, onoff(%d)\n", __func__, __LINE__, onoff);
+	pr_debug("%s: prox/als power line: %d, onoff(%d)\n", __func__, __LINE__, onoff);
 
 #if 0
 	if(sensor_power_pm8058_l15 == onoff){
@@ -2927,7 +2927,7 @@ static int power_set_for_8058_l11(unsigned char onoff)
 			goto vreg_l11_fail;
 		}
 	}
-	printk(KERN_INFO "%s: line: %d\n", __func__, __LINE__);
+	pr_debug("%s: line: %d\n", __func__, __LINE__);
 	return 0;
 	
 vreg_l11_fail:
@@ -2944,7 +2944,7 @@ uint32_t sensor_pwr_mask = 0;
 static int sensor_common_power_set(unsigned char on, int sensor)
 {
 	int ret = 0;
-	printk(KERN_INFO "%s pwr_mask(%d), on(%d), sensor(%d)\n", __func__, sensor_pwr_mask, on, sensor); 
+	pr_debug("%s pwr_mask(%d), on(%d), sensor(%d)\n", __func__, sensor_pwr_mask, on, sensor); 
 
 	if(on)
 	{
