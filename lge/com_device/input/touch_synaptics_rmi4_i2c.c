@@ -1400,9 +1400,9 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						width_min = (ts_reg_data.finger_data[f_counter][REG_WY_WX] & 0xF0) >> 4;
 					}
 
-					/* Try to filter out small variations when finger is moving in a very small area (4x3) */
-					if ((((ts->pre_ts_data.pos_x[f_counter] - curr_ts_data.pos_x[f_counter])^2) < 17) &&
-					    ((ts->pre_ts_data.pos_y[f_counter] - curr_ts_data.pos_y[f_counter])^2) < 10) {
+					/* Try to filter out small variations when finger is moving in a very small area (5x4) */
+					if ((((ts->pre_ts_data.pos_x[f_counter] - curr_ts_data.pos_x[f_counter])^2) < 26) &&
+					    ((ts->pre_ts_data.pos_y[f_counter] - curr_ts_data.pos_y[f_counter])^2) < 17) {
 						curr_ts_data.pos_x[f_counter] = ts->pre_ts_data.pos_x[f_counter];
 						curr_ts_data.pos_y[f_counter] = ts->pre_ts_data.pos_y[f_counter];
 					}
