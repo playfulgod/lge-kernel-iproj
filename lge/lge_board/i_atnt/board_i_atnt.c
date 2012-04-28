@@ -2143,10 +2143,12 @@ static void __init msm8x60_init_dsps(void)
 /* from the Firmware base */
 #define PMEM_KERNEL_SMI_BASE  (MSM_SMI_BASE)
 #define PMEM_KERNEL_SMI_SIZE  0xc00000
+
 /* User space SMI PMEM Region for video core*/
 /* used for encoder, decoder input & output buffers  */
+
 #define MSM_PMEM_SMIPOOL_BASE (PMEM_KERNEL_SMI_BASE + PMEM_KERNEL_SMI_SIZE)
-#define MSM_PMEM_SMIPOOL_SIZE 0x3A00000
+#define MSM_PMEM_SMIPOOL_SIZE 0x4000000 - PMEM_KERNEL_SMI_SIZE
 
 #ifdef CONFIG_KERNEL_PMEM_EBI_REGION
 static unsigned pmem_kernel_ebi1_size = MSM_PMEM_KERNEL_EBI1_SIZE;
