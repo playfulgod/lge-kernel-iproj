@@ -875,9 +875,9 @@ static int atv_dac_power(int on)
 #endif
 #ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
 int mdp_core_clk_rate_table[] = {
-   128000000,
-   128000000,
-   128000000,
+	85330000,
+   	128000000,
+   	160000000,
 	200000000,
 };
 #else
@@ -892,11 +892,7 @@ int mdp_core_clk_rate_table[] = {
 
 static struct msm_panel_common_pdata mdp_pdata = {
     //.gpio = MDP_VSYNC_GPIO,
-#ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
-	.mdp_core_clk_rate = 128000000,
-#else
 	.mdp_core_clk_rate = 59080000,
-#endif/*[LGE_LCD] shoogi.lee@lge.com*/
 	.mdp_core_clk_table = mdp_core_clk_rate_table,
 	.num_mdp_clk = ARRAY_SIZE(mdp_core_clk_rate_table),
 #ifdef CONFIG_MSM_BUS_SCALING
