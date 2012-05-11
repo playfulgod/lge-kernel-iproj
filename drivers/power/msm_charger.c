@@ -2683,7 +2683,7 @@ static int msm_charger_resume(struct device *dev)
 	queue_delayed_work(msm_chg.event_wq_thread,
 				&msm_chg.update_heartbeat_work,
 			      round_jiffies_relative(msecs_to_jiffies
-						     (msm_chg.update_time*5)));
+						     (msm_chg.update_time)));
 	mutex_lock(&msm_chg.status_lock);
 	handle_battery_inserted();
 	mutex_unlock(&msm_chg.status_lock);
