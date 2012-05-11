@@ -47,7 +47,6 @@
  * default		: 0
  */
 static unsigned int synaptics_rmi4_i2c_debug_mask = \
-		SYNAPTICS_RMI4_I2C_DEBUG_BUTTON_STATUS | \
 		SYNAPTICS_DEBUG_BASELINE | \
 		SYNAPTICS_RMI4_I2C_DEBUG_NONE;
 
