@@ -99,7 +99,7 @@ DECLARE_DELAYED_WORK(sleep_workqueue, bluesleep_sleep_work);
 #define BT_ASLEEP	0x04
 //[LGE_UPDATE_S] 20110420, BRCM BT Power, [START]
 #ifndef CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH
-#define CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH
+//#define CONFIG_LGE_BRCM_H4_LPM_SUPPORT_PATCH
 #endif
 
 //Un-comment for root permission
