@@ -330,6 +330,9 @@ static void release_all_ts_event(struct synaptics_ts_data *ts)
 		if (ts->finger_prestate[f_counter] == TOUCH_PRESSED) {
 			input_mt_sync(ts->input_dev);
 
+			ts->samples_ts_data.sample_pos[f_counter] = 0;
+			ts->samples_ts_data.bucket_full[f_counter] = 0;
+
 			report_enable = 1;
 		}
 	}
@@ -1399,14 +1402,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						width_min = (ts_reg_data.finger_data[f_counter][REG_WY_WX] & 0xF0) >> 4;
 					}
 
-					/* Try to filter out small variations when finger is moving in a very small area (5x4) */
-					if ((((ts->pre_ts_data.pos_x[f_counter] - curr_ts_data.pos_x[f_counter])^2) < 26) &&
-					    ((ts->pre_ts_data.pos_y[f_counter] - curr_ts_data.pos_y[f_counter])^2) < 17) {
-						curr_ts_data.pos_x[f_counter] = ts->pre_ts_data.pos_x[f_counter];
-						curr_ts_data.pos_y[f_counter] = ts->pre_ts_data.pos_y[f_counter];
-					}
-
-
 					curr_ts_data.pressure[f_counter] = ts_reg_data.finger_data[f_counter][REG_Z];
 
 					if (is_chg_plugged_in() && ts->finger_prestate[f_counter] == TOUCH_RELEASED) {
@@ -1440,6 +1435,40 @@ static void synaptics_ts_work_func(struct work_struct *work)
 							continue;
 						}	
 					}
+
+
+                                        /* Store the last 3 samples */
+					ts->samples_ts_data.pos_x[f_counter][ts->samples_ts_data.sample_pos[f_counter]] = curr_ts_data.pos_x[f_counter];
+					ts->samples_ts_data.pos_y[f_counter][ts->samples_ts_data.sample_pos[f_counter]] = curr_ts_data.pos_y[f_counter];
+
+					if (!ts->samples_ts_data.bucket_full[f_counter] && ts->samples_ts_data.sample_pos[f_counter]>=3)
+						ts->samples_ts_data.bucket_full[f_counter] = 1;
+
+
+					{
+						int sample = 0;
+
+						/* Add bias towards the last sample until the averaging kicks in */
+						if (!ts->samples_ts_data.bucket_full[f_counter]) {
+							for (sample = (ts->samples_ts_data.sample_pos[f_counter]+1); sample<4; sample++) {
+								ts->samples_ts_data.pos_x[f_counter][sample] = curr_ts_data.pos_x[f_counter];
+								ts->samples_ts_data.pos_y[f_counter][sample] = curr_ts_data.pos_y[f_counter];
+							}
+						}
+
+						/* Average out the samples */
+						curr_ts_data.pos_x[f_counter] = 0;
+						curr_ts_data.pos_y[f_counter] = 0;
+						for (sample = 0; sample < 4; sample++) {
+							curr_ts_data.pos_x[f_counter] += ts->samples_ts_data.pos_x[f_counter][sample];
+							curr_ts_data.pos_y[f_counter] += ts->samples_ts_data.pos_y[f_counter][sample];
+						}
+						curr_ts_data.pos_x[f_counter] /= 4;
+						curr_ts_data.pos_y[f_counter] /= 4;
+					}
+
+					ts->samples_ts_data.sample_pos[f_counter]+=1; ts->samples_ts_data.sample_pos[f_counter]%=4;
+
 					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, curr_ts_data.pos_x[f_counter]);
 					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, curr_ts_data.pos_y[f_counter]);
 					input_report_abs(ts->input_dev, ABS_MT_PRESSURE, curr_ts_data.pressure[f_counter]);
@@ -1501,6 +1530,8 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
 					ts->pre_ts_data.pos_x[f_counter] = 0;
 					ts->pre_ts_data.pos_y[f_counter] = 0;
+					ts->samples_ts_data.sample_pos[f_counter] = 0;
+					ts->samples_ts_data.bucket_full[f_counter] = 0;
 				} else if (ts->finger_prestate[f_counter] == TOUCH_DEBOUNCE) {
 					if (synaptics_rmi4_i2c_debug_mask & SYNAPTICS_RMI4_I2C_DEBUG_FINGER_STATUS)
 						SYNAPTICS_INFO_MSG("Finger%d debounced\n", f_counter);
@@ -1509,6 +1540,8 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
 					ts->pre_ts_data.pos_x[f_counter] = 0;
 					ts->pre_ts_data.pos_y[f_counter] = 0;
+					ts->samples_ts_data.sample_pos[f_counter] = 0;
+					ts->samples_ts_data.bucket_full[f_counter] = 0;
 
 				}
 

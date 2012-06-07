@@ -59,6 +59,13 @@ typedef struct {
 	unsigned char pressure[MAX_NUM_OF_FINGER];
 } ts_finger_data;
 
+typedef struct {
+	unsigned int pos_x[MAX_NUM_OF_FINGER][4];
+	unsigned int pos_y[MAX_NUM_OF_FINGER][4];
+	short sample_pos[MAX_NUM_OF_FINGER];
+	short bucket_full[MAX_NUM_OF_FINGER];
+} ts_sample_data;
+
 struct synaptics_ts_timestamp {
 	u64 start;
 	u64 end;
@@ -103,6 +110,7 @@ struct synaptics_ts_data {
 	struct early_suspend early_suspend;
 	struct synaptics_ts_timestamp int_delay;
 	ts_finger_data pre_ts_data;
+	ts_sample_data samples_ts_data;
 	char fw_rev;
 	char manufcturer_id;
 	char product_id[11];
