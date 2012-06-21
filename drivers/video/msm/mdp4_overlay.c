@@ -2023,9 +2023,6 @@ static u32 mdp4_overlay_blt_enable(struct mdp_overlay *req,
 		if (mfd->panel_info.xres > 1280)
 			use_blt = 1;
 	}
-#ifdef CONFIG_LGE_I_DISP_UNDERRUN
-	use_blt = 1;
-#endif
 	return use_blt;
 }
 
@@ -2072,6 +2069,11 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 
 	if (mixer == MDP4_MIXER0) {
 		u32 use_blt = mdp4_overlay_blt_enable(req, mfd,	perf_level);
+#ifdef CONFIG_LGE_I_DISP_UNDERRUN
+		if (!use_blt && pipe->pipe_type == OVERLAY_TYPE_VIDEO) {
+			use_blt=1;
+		}
+#endif
 		mfd->use_ov0_blt &= ~(1 << (pipe->pipe_ndx-1));
 		mfd->use_ov0_blt |= (use_blt << (pipe->pipe_ndx-1));
 	}
