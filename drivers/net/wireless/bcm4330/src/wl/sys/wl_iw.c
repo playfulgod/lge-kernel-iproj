@@ -1714,9 +1714,9 @@ wl_iw_control_wl_on(
 	wl_iw_send_priv_event(dev, "START");
 
 #ifdef SOFTAP
-	if (!ap_fw_loaded) {
+	//if (!ap_fw_loaded) {
 		wl_iw_iscan_set_scan_broadcast_prep(dev, 0);
-	}
+	//}
 #else
 	wl_iw_iscan_set_scan_broadcast_prep(dev, 0);
 #endif
