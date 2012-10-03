@@ -6425,7 +6425,9 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 
 	msm8x60_check_2d_hardware();
 
+#ifdef CONFIG_LGE_VIBRATOR
 	lge_add_misc_devices();
+#endif
 	/* Change SPM handling of core 1 if PMM 8160 is present. */
 	soc_platform_version = socinfo_get_platform_version();
 	if (SOCINFO_VERSION_MAJOR(soc_platform_version) == 1 &&
