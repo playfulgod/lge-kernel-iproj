@@ -317,7 +317,7 @@ int max17040_get_capacity_percent(void)
 #endif	
 	}
 #ifdef LGE_DEBUG_FINAL
-    pr_info("[FuelGuage battinfo =%d] FG:[org]%d->%ld, FG:[transe96per->100per]%d, MV:%d\n", lge_battery_info,(int)(debug_soc/10000000), debug_soc, (int)batt_soc, vbatt_mv);
+    pr_debug("[FuelGuage battinfo =%d] FG:[org]%d->%ld, FG:[transe96per->100per]%d, MV:%d\n", lge_battery_info,(int)(debug_soc/10000000), debug_soc, (int)batt_soc, vbatt_mv);
 #endif /* LGE_DEBUG_FINAL */
 
     cur_soc = (int)batt_soc;

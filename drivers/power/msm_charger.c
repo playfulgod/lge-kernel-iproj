@@ -1382,7 +1382,7 @@ static int chg_is_battery_too_hot_or_too_cold(int temp_adc, int batt_level)
             chg_batt_temp_state = CHG_BATT_NORMAL_STATE;
 			if(charging_flow_monitor_enable == 1)
 			{
-				pr_err("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
+				pr_debug("%s: BATT TEMP NORMAL (STATE: %d) (thm: %d) (volt: %d)!.\n",
 			  				__func__,CHG_BATT_NORMAL_STATE, temp_adc,batt_level);
             }
 			
@@ -1771,7 +1771,7 @@ static void update_heartbeat(struct work_struct *work)
 		temperature = get_battery_temperature();
 		/* TODO implement JEITA SPEC*/
 #ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
-		pr_err("%s: battery temperature is %d celcius)!.\n",__func__,temperature);
+		pr_debug("%s: battery temperature is %d celcius)!.\n",__func__,temperature);
 		temp_adc = get_battery_temperature_adc();
         g_temp_adc = temp_adc;
 		if(pseudo_batt_info.mode == 1)
