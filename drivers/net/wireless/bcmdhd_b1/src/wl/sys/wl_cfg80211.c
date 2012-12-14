@@ -3710,6 +3710,12 @@ wl_cfg80211_remain_on_channel(struct wiphy *wiphy, struct net_device *dev,
 	cfg80211_ready_on_channel(dev, *cookie, channel,
 		channel_type, duration, GFP_KERNEL);
 	if (!p2p_is_on(wl)) {
+		/* If wl_cfgp2p_supported() fails, wl->p2p will be NULL */
+		if (!wl->p2p) {
+			printk(KERN_ERR "%s: p2p not initialized\n", __func__);
+			err = -EINVAL;
+			goto exit;
+		}
 #ifdef P2P_PATCH
 		wl_cfgp2p_set_firm_p2p(wl); //LGE_CHANGE real-wifi@lge.com by yangseon.so,20120314,p2p device address issue 
 #endif
