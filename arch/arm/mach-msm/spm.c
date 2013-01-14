@@ -197,9 +197,8 @@ int msm_spm_set_vdd(unsigned int cpu, unsigned int vlevel)
 
 	if (!atomic_read(&msm_spm_set_vdd_x_cpu_allowed) &&
 				unlikely(smp_processor_id() != cpu)) {
-		if (msm_spm_debug_mask & MSM_SPM_DEBUG_VCTL)
-			pr_info("%s: attempting to set vdd of cpu %u from "
-				"cpu %u\n", __func__, cpu, smp_processor_id());
+		pr_err("%s: attempting to set vdd of cpu %u from "
+			"cpu %u\n", __func__, cpu, smp_processor_id());
 		goto set_vdd_x_cpu_bail;
 	}
 
@@ -266,6 +265,11 @@ void msm_spm_reinit(void)
 void msm_spm_allow_x_cpu_set_vdd(bool allowed)
 {
 	atomic_set(&msm_spm_set_vdd_x_cpu_allowed, allowed ? 1 : 0);
+}
+
+int get_msm_spm_set_vdd_x_cpu_allowed(void)
+{
+	return (atomic_read(&msm_spm_set_vdd_x_cpu_allowed) != 0);
 }
 
 int __init msm_spm_init(struct msm_spm_platform_data *data, int nr_devs)

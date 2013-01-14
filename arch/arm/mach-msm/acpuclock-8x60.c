@@ -32,6 +32,7 @@
 
 #include "acpuclock.h"
 #include "avs.h"
+#include "spm.h"
 
 /* Frequency switch modes. */
 #define SHOT_SWITCH		4
@@ -647,7 +648,7 @@ static void switch_sc_speed(int cpu, struct clkctl_acpu_speed *tgt_s)
 	drv_state.current_speed[cpu] = tgt_s;
 }
 
-static int acpuclk_8x60_set_rate(int cpu, unsigned long rate,
+static int _acpuclk_8x60_set_rate(int cpu, unsigned long rate,
 				 enum setrate_reason reason)
 {
 	struct clkctl_acpu_speed *tgt_s, *strt_s;
@@ -743,6 +744,56 @@ out:
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_HOTPLUG)
 		mutex_unlock(&drv_state.lock);
 	return rc;
+}
+
+/*
+ * After the PM subsystem is initialized, decrease_vdd() must be run on the
+ * same CPU that it is modifying.  Check for that below and, if this is not
+ * the case, switch CPUs by using schedule_work_on().
+ */
+struct set_rate_params {
+	struct work_struct	wrk;
+	unsigned long		rate;
+	enum setrate_reason	reason;
+	wait_queue_head_t	waitq;
+	int			done;
+	int			rc;
+};
+
+static void set_rate_callback(struct work_struct *work)
+{
+	struct set_rate_params *sp;
+	int cpu;
+
+	sp = container_of(work, struct set_rate_params, wrk);
+	cpu = smp_processor_id();
+	printk(KERN_INFO "%s: cpu %d: running work\n", __func__, cpu);
+	sp->rc = _acpuclk_8x60_set_rate(cpu, sp->rate, sp->reason);
+	sp->done = 1;
+	wake_up_interruptible(&sp->waitq);
+}
+
+static int acpuclk_8x60_set_rate(int cpu, unsigned long rate,
+				 enum setrate_reason reason)
+{
+	struct set_rate_params sp;
+
+	if (!get_msm_spm_set_vdd_x_cpu_allowed() && smp_processor_id() != cpu) {
+		INIT_WORK(&sp.wrk, set_rate_callback);
+		sp.rate = rate;
+		sp.reason = reason;
+		init_waitqueue_head(&sp.waitq);
+		sp.done = 0;
+		printk(KERN_INFO "%s: cpu %d: schedule work on cpu %d\n",
+			__func__, smp_processor_id(), cpu);
+		schedule_work_on(cpu, &sp.wrk);
+		wait_event_interruptible(sp.waitq, sp.done);
+		printk(KERN_INFO "%s: cpu %d: work done\n",
+			__func__, smp_processor_id());
+		return sp.rc;
+	}
+
+	return _acpuclk_8x60_set_rate(cpu, rate, reason);
 }
 
 static void __init scpll_init(int pll, unsigned int max_l_val)
@@ -911,13 +962,13 @@ static int __cpuinit acpuclock_cpu_callback(struct notifier_block *nfb,
 		/* Fall through. */
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
-		acpuclk_8x60_set_rate(cpu, HOT_UNPLUG_KHZ, SETRATE_HOTPLUG);
+		_acpuclk_8x60_set_rate(cpu, HOT_UNPLUG_KHZ, SETRATE_HOTPLUG);
 		break;
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 		if (WARN_ON(!prev_khz[cpu]))
 			return NOTIFY_BAD;
-		acpuclk_8x60_set_rate(cpu, prev_khz[cpu], SETRATE_HOTPLUG);
+		_acpuclk_8x60_set_rate(cpu, prev_khz[cpu], SETRATE_HOTPLUG);
 		break;
 	default:
 		break;
@@ -1072,7 +1123,7 @@ static int __init acpuclk_8x60_init(struct acpuclk_soc_data *soc_data)
 
 	/* Improve boot time by ramping up CPUs immediately. */
 	for_each_online_cpu(cpu)
-		acpuclk_8x60_set_rate(cpu, max_freq->acpuclk_khz, SETRATE_INIT);
+		_acpuclk_8x60_set_rate(cpu, max_freq->acpuclk_khz, SETRATE_INIT);
 
 	acpuclk_register(&acpuclk_8x60_data);
 	cpufreq_table_init();
