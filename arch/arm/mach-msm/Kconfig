@@ -702,6 +702,24 @@ config MACH_FSM9XXX_SURF
 
 endmenu
 
+config MSM8X60_CLOCK_FREQTBL_NO_SLOW
+	depends on ARCH_MSM8X60
+	bool "Disable slow frequency tables"
+	help
+	  MSM 8x60 normally has six frequency tables: a safe fallback,
+	  slowest, slower, slow, nominal, and fast.  This removes the
+	  slow tables, leaving the safe fallback, nominal and fast.
+
+config MSM8X60_CLOCK_FREQTBL_NO_TRUNCATE
+	depends on ARCH_MSM8X60
+	bool "Disable truncating frequency tables"
+	help
+	  MSM 8x60 normally supports frequencies up to 1647 MHz but the
+	  firmware may indicate that the device only supports 1512 MHz.
+	  In this case the kernel will normally truncate the frequency
+	  table to respect the firmware.  This disables the truncation
+	  and always allows 1647 MHz.
+
 config MSM_STACKED_MEMORY
 	bool "Stacked Memory"
 	default y
