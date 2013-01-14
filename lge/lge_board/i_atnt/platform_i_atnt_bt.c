@@ -167,7 +167,7 @@ static int configure_pcm_gpios(int on)
 		}
 	}
 	if (ret)
-		for (; i >= 0; i--)
+		while (--i >= 0)
 			msm_gpiomux_put(pcm_gpios[i]);
 	return ret;
 }
