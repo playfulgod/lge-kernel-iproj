@@ -693,7 +693,7 @@ struct incall_music_info {
 	uint32_t playing;
 };
 
-#if !defined (CONFIG_MACH_LGE_I_BOARD_LGU) && !defined (CONFIG_MACH_LGE_I_BOARD_SKT_DONOTUSE)
+#if !defined (CONFIG_MACH_LGE_I_BOARD_LGU_DONOTUSE) && !defined (CONFIG_MACH_LGE_I_BOARD_SKT_DONOTUSE)
 struct voice_data {
 	int voc_state;/*INIT, CHANGE, RELEASE, RUN */
 
@@ -843,7 +843,7 @@ int voice_start_record(uint32_t rec_mode, uint32_t set);
 
 int voice_start_playback(uint32_t set);
 
-#if !defined (CONFIG_MACH_LGE_I_BOARD_LGU) && !defined (CONFIG_MACH_LGE_I_BOARD_SKT_DONOTUSE)
+#if !defined (CONFIG_MACH_LGE_I_BOARD_LGU_DONOTUSE) && !defined (CONFIG_MACH_LGE_I_BOARD_SKT_DONOTUSE)
 u16 voice_get_session_id(const char *name);
 #endif
 #endif
