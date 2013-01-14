@@ -70,7 +70,7 @@
 #include "f_ccid.c"
 #include "f_mtp.c"
 #include "f_accessory.c"
-#ifdef CONFIG_USB_G_LGE_ANDROID
+#ifdef CONFIG_USB_G_LGE_ECM
 #include "f_ecm.c"
 #else
 #define USB_ETH_RNDIS y
@@ -812,7 +812,7 @@ static struct android_usb_function ptp_function = {
 	.bind_config	= ptp_function_bind_config,
 };
 
-#ifndef CONFIG_USB_G_LGE_ANDROID
+#ifndef CONFIG_USB_G_LGE_ECM
 struct rndis_function_config {
 	u8      ethaddr[ETH_ALEN];
 	u32     vendorID;
@@ -996,7 +996,7 @@ static struct android_usb_function rndis_function = {
 };
 #endif
 
-#ifdef CONFIG_USB_G_LGE_ANDROID
+#ifdef CONFIG_USB_G_LGE_ECM
 struct ecm_function_config {
 	u8      ethaddr[ETH_ALEN];
 	u32     vendorID;
@@ -1433,7 +1433,7 @@ static struct android_usb_function *supported_functions[] = {
 	&acm_function,
 	&mtp_function,
 	&ptp_function,
-#ifdef CONFIG_USB_G_LGE_ANDROID
+#ifdef CONFIG_USB_G_LGE_ECM
 	&ecm_function,
 #else
 	&rndis_function,
@@ -1896,7 +1896,7 @@ static int android_bind(struct usb_composite_dev *cdev)
 	strings_dev[STRING_SERIAL_IDX].id = id;
 	device_desc.iSerialNumber = id;
 
-#ifdef CONFIG_USB_G_LGE_ANDROID
+#ifdef CONFIG_USB_G_LGE_ECM
     /* ecm - 4:control interface label */
     id = usb_string_id(cdev);
     if (id < 0)
