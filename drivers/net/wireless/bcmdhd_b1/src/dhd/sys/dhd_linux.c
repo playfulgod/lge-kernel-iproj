@@ -1828,7 +1828,7 @@ dhd_dpc_thread(void *data)
 
 	/*  signal: thread has started */
 	complete(&tsk->completed);
-#ifdef CONFIG_MACH_LGE_I_BOARD_ATNT
+#ifdef CONFIG_MACH_LGE_I_BOARD
 	{
 		struct cpumask cpus;
 		DHD_ERROR(("%s: Enter  Set CPU Affinity only to cpu0\n", __func__));
@@ -4416,7 +4416,7 @@ dhd_module_init(void)
 {
 	int error = 0;
 
-#if 1 && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	int retry = POWERUP_MAX_RETRY;
 	int chip_up = 0;
 #endif 
@@ -4441,7 +4441,7 @@ dhd_module_init(void)
 	} while (0);
 #endif 
 
-#if 1 && defined(BCMLXSDMMC) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+#if defined(CONFIG_MACH_LGE_I_BOARD_ATNT) && defined(BCMLXSDMMC) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	do {
 		sema_init(&dhd_chipup_sem, 0);
 		dhd_bus_reg_sdio_notify(&dhd_chipup_sem);
@@ -4491,6 +4491,10 @@ dhd_module_init(void)
 		DHD_ERROR(("%s: sdio_register_driver failed\n", __FUNCTION__));
 		goto fail_1;
 	}
+
+#if defined(CONFIG_MACH_LGE_I_BOARD_VZW) && defined(CONFIG_LGE_BCM432X_PATCH)
+        dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	/*
