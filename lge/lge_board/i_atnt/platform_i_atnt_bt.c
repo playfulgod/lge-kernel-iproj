@@ -115,7 +115,13 @@ static struct platform_device msm_bt_power_device = {
 static int configure_uart_gpios(int on)
 {
 	int ret = 0, i;
-	int uart_gpios[] = {53, 54, 55, 56};
+	static int uart_gpios[] = { 53, 54, 55, 56 };
+	static int uart_gpios_status;
+
+	if (on == uart_gpios_status)
+		return 0;
+
+	uart_gpios_status = on;
 	for (i = 0; i < ARRAY_SIZE(uart_gpios); i++) {
 		if (on) {
 			ret = msm_gpiomux_get(uart_gpios[i]);
@@ -127,9 +133,11 @@ static int configure_uart_gpios(int on)
 				return ret;
 		}
 	}
-	if (ret)
+	if (ret) {
+		uart_gpios_status = 0;
 		for (; i >= 0; i--)
 			msm_gpiomux_put(uart_gpios[i]);
+	}
 	return ret;
 }
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
@@ -154,7 +162,13 @@ static unsigned bt_config_power_off[] = {
 static int configure_pcm_gpios(int on)
 {
 	int ret = 0, i;
-	int pcm_gpios[] = {111, 112, 113, 114};
+	static int pcm_gpios[] = { 111, 112, 113, 114 };
+	static int pcm_gpios_status;
+
+	if (on == pcm_gpios_status)
+		return 0;
+
+	pcm_gpios_status = on;
 	for (i = 0; i < ARRAY_SIZE(pcm_gpios); i++) {
 		if (on) {
 			ret = msm_gpiomux_get(pcm_gpios[i]);
@@ -166,9 +180,11 @@ static int configure_pcm_gpios(int on)
 				return ret;
 		}
 	}
-	if (ret)
+	if (ret) {
+		pcm_gpios_status = 0;
 		while (--i >= 0)
 			msm_gpiomux_put(pcm_gpios[i]);
+	}
 	return ret;
 }
 
