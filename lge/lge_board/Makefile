@@ -10,3 +10,6 @@ obj-$(CONFIG_MACH_LGE_I_BOARD_SKT)	+= i_skt/
 obj-$(CONFIG_MACH_LGE_I_BOARD_DCM)      += i_dcm/
 obj-$(CONFIG_MACH_LGE_I_BOARD_LGU)	+= i_lgu/
 obj-$(CONFIG_MACH_LGE_I_BOARD_VZW)	+= i_vzw/
+obj-$(CONFIG_MACH_LGE_C1_BOARD_MPS)	+= cayman_mpcs/
+
+
