@@ -1798,10 +1798,10 @@ static struct touch_device_caps touch_caps = {
 	.max_width 					= 15,
 	.max_pressure 				= 0xFF,
 	.max_id						= 10,
-	.lcd_x						= 720,
-	.lcd_y						= 1280,
-	.x_max						= 1110,
-	.y_max						= 1973,
+	.lcd_x						= 480,
+	.lcd_y						= 800,
+	.x_max						= 1036,
+	.y_max						= 1728,
 };
 
 static struct touch_operation_role touch_role = {
