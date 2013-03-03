@@ -26,30 +26,34 @@
 #include <linux/gpio.h>
 #include <mach/board.h>
 
-#define MAX_LEVEL			0x71 
-#define MIN_LEVEL 		0x00
-#define DEFAULT_LEVEL	0x33
+//sujin.shin@lge.com [Overheat Fake]
+#include <linux/syscalls.h>
+#include <asm/uaccess.h>
+
+#define LOG_SCALE_MAPPING
+//20120326 ws.yang@lge.com  .. changed MAX_LEVEL to MAX_LEVEL_BL  
+#ifdef LOG_SCALE_MAPPING
+#define MAX_LEVEL_BL			0x7F
+#else
+#define MAX_LEVEL_BL			0x71
+#endif
+
+#define MIN_LEVEL 		0x0F
+#define DEFAULT_LEVEL	0x55
 
 #define I2C_BL_NAME "lm3530"
 
 #define BL_ON	1
 #define BL_OFF	0
 
+//20110212 ws.yang@lge.com changed to path from sujin.shin@lge.com [Overheat Fake]
+#define BATTERY_CHARGING_CURRENT_SET "/sys/class/power_supply/battery/charging_current_set"
+
 #ifdef CONFIG_LGE_PM_FACTORY_CURRENT_DOWN
 extern uint16_t battery_info_get(void);
 __attribute__((weak)) int usb_cable_info;
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-static struct {
-   struct early_suspend bl_lm3530_early_suspend;
-   short suspended;
-} lm3530_suspension;
-
-static void bl_early_suspend(struct early_suspend *h);
-static void bl_early_resume(struct early_suspend *h);
-#endif
 static struct i2c_client *lm3530_i2c_client;
 
 struct backlight_platform_data {
@@ -88,11 +92,50 @@ static int saved_main_lcd_level;
 static int backlight_status = BL_OFF;
 static struct lm3530_device *main_lm3530_dev = NULL;
 
+int lm3530_backlight_status(void)
+{
+	return backlight_status;
+}
+EXPORT_SYMBOL(lm3530_backlight_status);
+
+//sujin.shin@lge.com [Overheat Fake]
+static int write_charging_current(const char *val)
+{
+	int h_file = 0;
+	int ret = 0;
+
+	mm_segment_t old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	h_file = sys_open(BATTERY_CHARGING_CURRENT_SET, O_RDWR | O_SYNC,0);
+
+	if(h_file >= 0)
+	{
+		ret = sys_write( h_file, val, 1);
+
+		if( ret != 1 )
+		{
+			printk("Can't write in BATTERY_CHARGING_CURRENT_SET.\n");
+			return ret;
+		}
+
+		sys_close(h_file);
+	}
+	else
+	{
+		printk("Can't open BATTERY_CHARGING_CURRENT_SET handle = %d.\n",h_file);
+		return 0;
+	}
+	set_fs(old_fs);
+
+	return 1;	
+}
+
 static void lm3530_hw_reset(void)
 {
 	int gpio = main_lm3530_dev->gpio;
 	
 	gpio_tlmm_config(GPIO_CFG(gpio, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
+	mdelay(1);
 	gpio_set_value(gpio, 1);
 	mdelay(1);
 }
@@ -119,10 +162,10 @@ static void lm3530_set_main_current_level(struct i2c_client *client, int level)
 {
 	struct lm3530_device *dev;
 	int cal_value;
-	int min_brightness 		= 0x05; //main_lm3530_dev->min_brightness;
+	int min_brightness 		= main_lm3530_dev->min_brightness;
 	int max_brightness 		= main_lm3530_dev->max_brightness;
 
-
+	int ret; //sujin.shin@lge.com [Overheat Fake]
 		
 	dev = (struct lm3530_device *)i2c_get_clientdata(client);
 	dev->bl_dev->props.brightness = cur_main_lcd_level = level;
@@ -130,25 +173,42 @@ static void lm3530_set_main_current_level(struct i2c_client *client, int level)
 	mutex_lock(&main_lm3530_dev->bl_mutex);
 
 	if(level!= 0){
-if(level <= MAX_LEVEL)
-	cal_value = level;
-						
-else if(level >MAX_LEVEL)
+if (level <= MIN_LEVEL)
+                  cal_value = min_brightness;
+else if(level > MIN_LEVEL && level < MAX_LEVEL_BL)
+
+#ifdef LOG_SCALE_MAPPING // for log scale mapping
+				if(level*2 <= 84)  // hardware request :  level <  UI level: 84
+					cal_value=(int)(level*2*5/10 + 42);
+				else
+					cal_value=(int)((2323*level*2/10000)+66); //for log scale mapping
+#else // for linear scale mapping
+						cal_value =(max_brightness- min_brightness)*level/(MAX_LEVEL_BL- MIN_LEVEL)
+								-((max_brightness- min_brightness)*MIN_LEVEL/(MAX_LEVEL_BL- MIN_LEVEL)-min_brightness);
+#endif
+
+else if(level >=MAX_LEVEL_BL)
            cal_value = max_brightness;
 			
 #ifdef CONFIG_LGE_PM_FACTORY_CURRENT_DOWN
-			if((0 == battery_info_get())&&((usb_cable_info == 6) ||(usb_cable_info == 7)||(usb_cable_info == 11)))
+			if(((usb_cable_info == 6) ||(usb_cable_info == 7)||(usb_cable_info == 11)))
 			{
 				cal_value = min_brightness;
 			}
 #endif						
 			
 		lm3530_write_reg(client, 0xA0, cal_value);
-		//printk("%s() : cal_value is : 0x%x\n", __func__, cal_value);
+		printk("%s() : cal_value is : 0x%x\n", __func__, cal_value);
 	}
 	else{
 		
 		lm3530_write_reg(client, 0x10, 0x00);		
+//sujin.shin@lge.com [Overheat Fake:START]
+	ret = write_charging_current("0");
+	if (ret != 1) {
+		printk("%s : write val has failed!!\n", __func__);
+		}
+//sujin.shin@lge.com [Overheat Fake:END]
 	}	
 
 	//msleep(1);
@@ -158,19 +218,20 @@ else if(level >MAX_LEVEL)
 
 void lm3530_backlight_on(int level)
 {
-	if (lm3530_suspension.suspended)
-		return;
 
 	if(backlight_status == BL_OFF){
 		lm3530_hw_reset();
 		
  		lm3530_write_reg(main_lm3530_dev->client, 0xA0, 0x00); //reset 0 brightness
 		lm3530_write_reg(main_lm3530_dev->client, 0x10, main_lm3530_dev->max_current);
-		lm3530_write_reg(main_lm3530_dev->client, 0x30, 0x2d); //fade in, out
-		
-		msleep(10);
+#ifdef LOG_SCALE_MAPPING // for log scale mapping
+		lm3530_write_reg(main_lm3530_dev->client, 0x30, 0x09);   //0x09  1.024ms/step   0x1b  4.096ms/step    0x2d :16.384ms/step  //fade in, out		
+#else // for linear scale mapping
+		lm3530_write_reg(main_lm3530_dev->client, 0x30, 0x2d);	 //fade in, out 	
+#endif
+//		msleep(100);              
 	}
-	
+ 
 	//printk("%s() \n", __func__);
 	lm3530_set_main_current_level(main_lm3530_dev->client, level);
 	backlight_status = BL_ON;
@@ -195,8 +256,8 @@ void lm3530_backlight_off(void)
 
 void lm3530_lcd_backlight_set_level( int level)
 {
-	if (level > MAX_LEVEL)
-		level = MAX_LEVEL;
+	if (level > MAX_LEVEL_BL)
+		level = MAX_LEVEL_BL;
 
 	if(lm3530_i2c_client!=NULL )
 	{		
@@ -298,25 +359,6 @@ static struct backlight_ops lm3530_bl_ops = {
 	.get_brightness = bl_get_intensity,
 };
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void bl_early_suspend(struct early_suspend *h)
-{
-	if (!lm3530_suspension.suspended) {
-		lm3530_backlight_off();
-		lm3530_suspension.suspended = 1;
-	}
-}
-
-static void bl_early_resume(struct early_suspend *h)
-{
-	if (lm3530_suspension.suspended) {
-		lm3530_suspension.suspended = 0;
-		lm3530_backlight_on(saved_main_lcd_level);
-	}
-}
-#endif
- 
-
 static int lm3530_probe(struct i2c_client *i2c_dev, const struct i2c_device_id *id)
 {
 	struct backlight_platform_data *pdata;
@@ -339,13 +381,10 @@ static int lm3530_probe(struct i2c_client *i2c_dev, const struct i2c_device_id *
 	main_lm3530_dev = dev;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = MAX_LEVEL;
+	props.max_brightness = MAX_LEVEL_BL;
 	
-	/* neo.kang@lge.com */
-	props.type = BACKLIGHT_PLATFORM;
-
 	bl_dev = backlight_device_register(I2C_BL_NAME, &i2c_dev->dev, NULL, &lm3530_bl_ops, &props);
-	bl_dev->props.max_brightness = MAX_LEVEL;
+	bl_dev->props.max_brightness = MAX_LEVEL_BL;
 	bl_dev->props.brightness = DEFAULT_LEVEL;
 	bl_dev->props.power = FB_BLANK_UNBLANK;
 	
@@ -365,15 +404,7 @@ static int lm3530_probe(struct i2c_client *i2c_dev, const struct i2c_device_id *
 
 	err = device_create_file(&i2c_dev->dev, &dev_attr_lm3530_level);
 	err = device_create_file(&i2c_dev->dev, &dev_attr_lm3530_backlight_on_off);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-        lm3530_suspension.bl_lm3530_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
-        lm3530_suspension.bl_lm3530_early_suspend.suspend = bl_early_suspend;
-        lm3530_suspension.bl_lm3530_early_suspend.resume = bl_early_resume;
-        register_early_suspend(&lm3530_suspension.bl_lm3530_early_suspend);
-	lm3530_suspension.suspended = 0;
-#endif
-
+    lm3530_hw_reset();
 	return 0;
 }
 
@@ -414,7 +445,7 @@ static int __init lcd_backlight_init(void)
 
 	return err;
 }
-
+ 
 module_init(lcd_backlight_init);
 
 MODULE_DESCRIPTION("LM3530 Backlight Control");

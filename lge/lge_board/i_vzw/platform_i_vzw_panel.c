@@ -66,7 +66,7 @@
 #elif defined(CONFIG_FB_MSM_TVOUT)
 #define MSM_FB_EXT_BUF_SIZE  (720 * 576 * 2 * 2) /* 2 bpp x 2 pages */
 #else
-#define MSM_FB_EXT_BUFT_SIZE	0
+#define MSM_FB_EXT_BUF_SIZE	0
 #endif
 
 /* Note: must be multiple of 4096 */
@@ -97,7 +97,7 @@ unsigned char hdmi_is_primary;
 #define MSM_FB_OVERLAY1_WRITEBACK_SIZE (0)
 #endif  /* CONFIG_FB_MSM_OVERLAY1_WRITEBACK */
 
-#define MIPI_VIDEO_LGIT_PANEL_NAME		"mipi_video_lgit_wvga"
+#define MIPI_VIDEO_LGD_PANEL_NAME		"mipi_video_lgd_wvga"
 #define HDMI_PANEL_NAME	"hdmi_msm"
 #define TVOUT_PANEL_NAME	"tvout_msm"
 
@@ -110,8 +110,8 @@ static struct resource msm_fb_resources[] = {
 
 static int msm_fb_detect_panel(const char *name)
 {
-	if (!strncmp(name, MIPI_VIDEO_LGIT_PANEL_NAME,
-			strnlen(MIPI_VIDEO_LGIT_PANEL_NAME,
+	if (!strncmp(name, MIPI_VIDEO_LGD_PANEL_NAME,
+			strnlen(MIPI_VIDEO_LGD_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
 		return 0;
 
@@ -185,9 +185,7 @@ static struct platform_device hdmi_msm_device = {
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 
-/* minjong.gong@lge.com, 2011.01.31 - lgit lcd for MWC board*/
 #define LCD_RESET_N		50
-/* minjong.gong@lge.com, 2011.01.31 - lgit lcd for MWC board*/
 
 static void mipi_config_gpio(int on)
 {
@@ -199,27 +197,25 @@ static void mipi_config_gpio(int on)
 	}
 }
 
-#ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
+#ifdef CONFIG_LGE_DISPLAY_MIPI_LGD_VIDEO_WVGA_PT
 extern void lm3537_lcd_backlight_set_level( int level);
-static int mipi_lgit_backlight_level(int level, int max, int min)
+static int mipi_lgd_backlight_level(int level, int max, int min)
 {
-	#warning "LM3537 hack"
-	// FIXME To test incremental merge, set back to "lm3530"
 	lm3537_lcd_backlight_set_level(level);
 
 	return 0;
 }
 
-static struct msm_panel_common_pdata mipi_lgit_pdata = {
-	.backlight_level = mipi_lgit_backlight_level,
+static struct msm_panel_common_pdata mipi_lgd_pdata = {
+	.backlight_level = mipi_lgd_backlight_level,
 	.panel_config_gpio = mipi_config_gpio,
 };
 
-static struct platform_device mipi_dsi_lgit_panel_device = {
-	.name = "mipi_lgit",
+static struct platform_device mipi_dsi_lgd_panel_device = {
+	.name = "mipi_lgd",
 	.id = 0,
 	.dev = {
-		.platform_data = &mipi_lgit_pdata,
+		.platform_data = &mipi_lgd_pdata,
 	}
 };
 #endif
@@ -374,11 +370,11 @@ static struct platform_device *panel_devices[] __initdata = {
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 
 /* jaeseong.gim@lge.com. 2011-01-16 */
-#ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
-	&mipi_dsi_lgit_panel_device,
+#ifdef CONFIG_LGE_DISPLAY_MIPI_LGD_VIDEO_WVGA_PT
+	&mipi_dsi_lgd_panel_device,
 #else
 	&mipi_dsi_sharp_panel_device,
-#endif /*CONFIG_FB_MSM_MIPI_LGIT_VIDEO_HD_PT */
+#endif
 #endif /*CONFIG_FB_MSM_MIPI_DSI */
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 	&hdmi_msm_device,
@@ -400,7 +396,7 @@ struct backlight_platform_data {
    int max_brightness;   
 };
 
-static struct backlight_platform_data lm3530_data = {
+static struct backlight_platform_data lm3537_data = {
 	.gpio = 49,
 	.max_current = 0xb7, //0x17, // CABC
 
@@ -414,8 +410,8 @@ static struct backlight_platform_data lm3530_data = {
 	0xBB = 26 mA full-scale current
 	0xBF= 29.5 mA full-scale current
 	*/
-	.min_brightness = 0x00,// 0x05, //0x09,
-	.max_brightness = 0x71,
+	.min_brightness = 25,// 0x05, //0x09,
+	.max_brightness = 128,
 };
 	
 struct i2c_registry {
@@ -425,11 +421,11 @@ struct i2c_registry {
 	int                    len;
 };
 
-#define LM3530_BACKLIGHT_ADDRESS 0x38
+#define LM3537_BACKLIGHT_ADDRESS 0x38
 static struct i2c_board_info msm_i2c_backlight_info[] = {
 	{
-		I2C_BOARD_INFO("lm3530", LM3530_BACKLIGHT_ADDRESS),
-		.platform_data = &lm3530_data,
+		I2C_BOARD_INFO("lm3537", LM3537_BACKLIGHT_ADDRESS),
+		.platform_data = &lm3537_data,
 	}
 };
 
@@ -842,7 +838,7 @@ static struct msm_bus_vectors mdp_1080p_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab = 432384000,
+		.ab = 334080000,
 		.ib = 550000000 * 2,
 	},
 };
@@ -981,15 +977,34 @@ static struct lcdc_platform_data dtv_hdmi_prim_pdata = {
 #endif
 
 
+#ifdef CONFIG_FB_MSM_MIPI_DSI
+int mdp_core_clk_rate_table[] = {
+	200000000,
+	200000000,
+	200000000,
+	200000000,
+};
+#else
+int mdp_core_clk_rate_table[] = {
+	59080000,
+	85330000,
+	128000000,
+	200000000,
+};
+#endif
+
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = MDP_VSYNC_GPIO,
-	.mdp_max_clk = 200000000,//59080000,
+//	.mdp_core_clk_rate = 160000000,//59080000,
+//	.mdp_core_clk_table = mdp_core_clk_rate_table,
+	.mdp_max_clk = 200000000,
+//	.num_mdp_clk = ARRAY_SIZE(mdp_core_clk_rate_table),
 #ifdef CONFIG_MSM_BUS_SCALING
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 #endif
 	.mdp_rev = MDP_REV_41,
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	.mem_hid = BIT(ION_CP_WB_HEAP_ID),
+	.mem_hid = ION_CP_WB_HEAP_ID,
 #else
 	.mem_hid = MEMTYPE_EBI1,
 #endif

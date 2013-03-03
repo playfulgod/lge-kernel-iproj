@@ -12,12 +12,12 @@ config LGE_BACKLIGHT_AAT2862
 
 config LGE_BACKLIGHT_LM3530
 	bool "select lm3530 device as LGE backlight management for I "
-	default n
+	default y
 	---help---
 	LGE backlight management (lm3530)
 
 config LGE_BACKLIGHT_LM3537
-	bool "select lm3537 device as LGE backlight management for I "
+	bool "select lm3537 device as LGE backlight management for cayman "
 	default y
 	---help---
 	LGE backlight management (lm3537)
@@ -34,6 +34,12 @@ config LGE_DISPLAY_MIPI_SHARP_VIDEO_WVGA_PT
 
 config LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
 	bool "LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT"
+	select FB_MSM_MIPI_DSI
+	---help---
+	LGE display management 
+	
+config LGE_DISPLAY_MIPI_LGD_VIDEO_WVGA_PT
+	bool "LGE_DISPLAY_MIPI_LGD_VIDEO_WVGA_PT"
 	select FB_MSM_MIPI_DSI
 	---help---
 	LGE display management 
@@ -89,5 +95,11 @@ config LGE_I_DISP_OV_MUTEX
 	default y
 	---help---
 	select this feature for resolving overlay lock-up issue
+
+config LGE_K_CAL
+	bool "K_calibration for lcd tunning"
+	default n
+	---help---
+	select this feature for kcal function enable 
 
 endmenu
