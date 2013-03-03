@@ -29,11 +29,16 @@
 #include "register_common_init.h"
 #endif
 
+#ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
 #define LGIT_IEF_SWITCH
-
+#endif
 /* Micron MT9M114 Registers and their values */
 
+#ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
 #define SENSOR_DEBUG 0
+#elif defined(CONFIG_LGE_DISPLAY_MIPI_LGD_VIDEO_WVGA_PT)
+#define SENSOR_DEBUG 0
+#endif
 
 struct mt9m114_work {
 	struct work_struct work;

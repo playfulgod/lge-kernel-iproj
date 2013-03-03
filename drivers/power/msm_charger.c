@@ -392,6 +392,55 @@ EXPORT_SYMBOL(get_battery_temperature_adc);
 #endif
 #endif
 
+/* elin.lee@lge.com 2011-12-01 for camera flash current under 5 below zero, PV issue*/
+#if defined(CONFIG_MACH_LGE_I_BOARD_VZW) || defined(CONFIG_MACH_LGE_C1_BOARD_MPS)
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+int is_temp_too_cold(void)
+{
+		int chg_batt_temp;
+		int rtnValue = 0;
+		int temp_adc;
+		temp_adc = get_battery_temperature_adc();
+	
+		printk("%s: START \n",__func__);
+		
+		if(temp_adc < adcmap_batttherm[THERM_55].x)
+		  chg_batt_temp = CHG_BATT_TEMP_OVER_55;
+		else if(temp_adc < adcmap_batttherm[THERM_45].x)
+		  chg_batt_temp = CHG_BATT_TEMP_46_55;
+		else if(temp_adc <= adcmap_batttherm[THERM_42].x)
+		  chg_batt_temp = CHG_BATT_TEMP_42_45;
+		else if(temp_adc < adcmap_batttherm[THERM_M5].x)
+		  chg_batt_temp = CHG_BATT_TEMP_M4_41;
+		else if(temp_adc <= adcmap_batttherm[THERM_M10].x)
+		  chg_batt_temp = CHG_BATT_TEMP_M10_M5;
+		else
+		  chg_batt_temp = CHG_BATT_TEMP_UNDER_M10;
+#ifdef CONFIG_LGE_PM_TA_COMPENSATION
+		if (is_chg_plugged_in())
+		{
+			if(temp_adc < adcmap_batttherm_ta[THERM_55].x)
+			  chg_batt_temp = CHG_BATT_TEMP_OVER_55;
+			else if(temp_adc < adcmap_batttherm_ta[THERM_45].x)
+			  chg_batt_temp = CHG_BATT_TEMP_46_55;
+			else if(temp_adc <= adcmap_batttherm_ta[THERM_42].x)
+			  chg_batt_temp = CHG_BATT_TEMP_42_45;
+			else if(temp_adc < adcmap_batttherm_ta[THERM_M5].x)
+			  chg_batt_temp = CHG_BATT_TEMP_M4_41;
+			else if(temp_adc <= adcmap_batttherm_ta[THERM_M10].x)
+			  chg_batt_temp = CHG_BATT_TEMP_M10_M5;
+			else
+			  chg_batt_temp = CHG_BATT_TEMP_UNDER_M10;
+		}	
+#endif
+		if(chg_batt_temp == CHG_BATT_TEMP_M10_M5 || chg_batt_temp == CHG_BATT_TEMP_UNDER_M10)
+			rtnValue = 1;
+
+		return rtnValue;	
+}
+#endif
+#endif
+
 static int get_prop_batt_capacity(void)
 {
 	int capacity;

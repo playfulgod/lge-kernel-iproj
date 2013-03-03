@@ -106,8 +106,9 @@ static int snapshot_flag;
 #endif
 // End LGE_BSP_CAMERA : shutter time reg table - jonghwan.ko@lge.com
 
+#ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
 #define LGIT_IEF_SWITCH
-
+#endif
 /*============================================================================
 							 TYPE DECLARATIONS
 ============================================================================*/

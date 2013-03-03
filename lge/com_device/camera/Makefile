@@ -1,6 +1,7 @@
 #platform.team@lge.com	2011.01
-
 obj-$(CONFIG_LGE_SENSOR_IMX105)+= sensor_imx105.o sensor_imx105_reg.o
+obj-$(CONFIG_LGE_SENSOR_MT9P017)+= sensor_mt9p017.o sensor_mt9p017_reg.o
+obj-$(CONFIG_LGE_SENSOR_MT9V113)+= sensor_mt9v113.o sensor_mt9v113_reg.o
 obj-$(CONFIG_LGE_SENSOR_ISX005)+= sensor_isx005.o sensor_isx005_reg.o sensor_isx005_tun.o
 obj-$(CONFIG_LGE_SENSOR_ISX006)+= sensor_isx006.o sensor_isx006_reg.o sensor_isx006_tun.o
 obj-$(CONFIG_LGE_SENSOR_MT9M113)+= sensor_mt9m113.o sensor_mt9m113_reg.o

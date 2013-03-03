@@ -645,8 +645,6 @@ struct msm_stats_buf {
 	uint32_t status_bits;
 	unsigned long buffer;
 	int fd;
-	int length;
-	struct ion_handle *handle;
 	uint32_t frame_id;
 };
 #define MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT 0
@@ -775,6 +773,14 @@ struct msm_snapshot_pp_status {
 // LGE_BSP_CAMERA 20110324
 #define CFG_SET_ISO			36
 
+//START LGE_BSP_CAMERA miracle.kim 2011-07-29 for CTS test, focus distancedd
+#define CFG_GET_FOCUS_DISTANCES 39 
+struct focus_distances_type {
+	float near_focus;
+	float current_focus;
+	float far_focus;
+};
+//END LGE_BSP_CAMERA miracle.kim 2011-07-29 for CTS test, focus distance
 
 //LGE_CAMERA_S : AE_metering - jonghwan.ko@lge.com
 #define SENSOR_AE_METERING 37
@@ -792,8 +798,8 @@ AE_METERING_MAX
 #define SENSOR_FIXED_FPS_30	2
 #define SENSOR_FIXED_FPS_10	3
 #define SENSOR_FIXED_FPS_08	4
-#define SENSOR_AUTO_FPS_0730	5 //CAMERA_BESTSHOT_NIGHT
-#define SENSOR_FIXED_FPS_07	6
+#define SENSOR_AUTO_FPS_0730	6 //CAMERA_BESTSHOT_NIGHT
+#define SENSOR_FIXED_FPS_07	5
 
 // LGE_CAMERA_E : Adjust VT Cam frame rate - jonghwan.ko@lge.com
 #define CFG_MAX 			41
@@ -1139,6 +1145,9 @@ struct sensor_cfg_data {
 		int is_autoflash;
 		struct mirror_flip mirror_flip;
 	} cfg;
+//START LGE_BSP_CAMERA miracle.kim 2011-07-29 for CTS test, focus distance
+	struct focus_distances_type focus_distances;
+//END LGE_BSP_CAMERA miracle.kim 2011-07-29 for CTS test, focus distance
 };
 
 struct msm_actuator_move_params_t {

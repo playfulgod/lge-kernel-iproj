@@ -15,28 +15,54 @@
  * 02110-1301, USA.
  */
  /*
-	 ; [Clock PARAMETERS]
-	 ; 
-	 ; Bypass PLL: Unchecked
-	 ; Input Frequency: 24.000
-	 ; Use Min Freq.: Unchecked
-	 ; Target PLL Frequency: 48.000
-	 ; Target VCO Frequency: Unspecified
-	 ; "M" Value: Unspecified
-	 ; "N" Value: Unspecified
-	 ; 
-	 ; Target PLL Frequency: 48 MHz
-	 ; Input Clock Frequency: 24 MHz
-	 ; 
-	 ; Actual PLL Frequency: 48 MHz
-	 ; Output Frequency: 384 MHz
-	 ; 
-	 ; M = 16
-	 ; N = 1
-	 ; Fpdf = 12 MHz
-	 ; Fvco = 384 MHz
-	 ; Bit clock = 384 MHz
-	 ; P2 = 8
+; [Clock PARAMETERS]
+; 
+; Bypass PLL: Unchecked
+; Input Frequency: 28.000
+; Use Min Freq.: Unchecked
+; Target PLL Frequency: 96.000
+; Target VCO Frequency: Unspecified
+; "M" Value: Unspecified
+; "N" Value: Unspecified
+; 
+; Target PLL Frequency: 96 MHz
+; Input Clock Frequency: 28 MHz
+; 
+; Actual PLL Frequency: 96 MHz
+; Output Frequency: 768 MHz
+; 
+; M = 96
+; N = 6
+; Fpdf = 4 MHz
+; Fvco = 768 MHz
+; Bit clock = 768 MHz
+; P2 = 8
+; 
+; [IMAGE PARAMETERS]
+; 
+; Requested Frames Per Second: 30.000
+; Output Columns: 1280
+; Output Rows: 960
+; Allow Skipping: Unchecked
+; Integration Time: 1.000000 msec.
+; Low Power: Unchecked
+; Blanking Computation: Auto H/V Balnking
+; 
+; Max Frame Time: 33.3333 msec
+; Max Frame Clocks: 1600000.0 clocks (48 MHz)
+; Pixel Clock: divided by 1
+; Skip Mode: 1x cols, 1x rows, Bin Mode: No
+; Horiz clks:  1288 active + 302 blank = 1590 total
+; Vert  rows:  968 active + 38 blank = 1006 total
+; Extra Delay: 460 clocks
+; 
+; Actual Frame Clocks: 1599540 clocks
+; Row Time: 33.125 usec / 1590 clocks
+; Integration Time: 1 msec.
+; Frame time: 33.323750 msec
+; Frames per Sec: 30.009 fps
+; 
+; Minimum Frame Rate: 10
 */
 #include "sensor_mt9m114.h"
 // vga size 382M 30fps to 15fps
@@ -48,14 +74,12 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 //===> 0x0080 번지 1bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크.
 //DELAY 100
 
-// ###
-//{0x301A, 0x0230}, 	// RESET_REGISTER
+{0x301A, 0x0230}, 	// RESET_REGISTER
 //POLL_FIELD= COMMAND_REGISTER, HOST_COMMAND_1, !=0, DELAY=10, TIMEOUT=100
 //===>0x0080 번지 1bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크.
 //DELAY 100
-{0xFFFE, 0x0002},	// john.park, 2011-05-09, To replace Polling check
-//{0x301A, 0x0230}, 	// RESET_REGISTER
-{0x301A, 0x0000}, 	// john.park, 2011-05-09, To replace Reset reg check
+{0xFFFF, 0x0064}, 	// RESET_REGISTER
+{0x301A, 0x0230}, 	// RESET_REGISTER
 
 //[Step2-PLL_Timing]
 {0x098E, 0x1000}, 	// LOGICAL_ADDRESS_ACCESS
@@ -82,13 +106,17 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 // 0xC808, 0x2DC1A9E	//cam_sensor_cfg_pixclk = 47979166
 {0xC80C, 0x0001},	//cam_sensor_cfg_row_speed = 1
 {0xC80E, 0x00DB},	//cam_sensor_cfg_fine_integ_time_min = 219
-{0xC810, 0x05B3},	//cam_sensor_cfg_fine_integ_time_max = 1469
-{0xC812, 0x03EE},	//cam_sensor_cfg_frame_length_lines = 1500
-{0xC814, 0x0636},	//cam_sensor_cfg_line_length_pck = 1600
+{0xC810, 0x05BD},		//cam_sensor_cfg_fine_integ_time_max = 1469 *****
+{0xC812, 0x0EA6},		//cam_sensor_cfg_frame_length_lines = 1500 *****
+{0xC814, 0x0640},		//cam_sensor_cfg_line_length_pck = 1600 ******
 {0xC816, 0x0060},	//cam_sensor_cfg_fine_correction = 96
 {0xC818, 0x03C3},	//cam_sensor_cfg_cpipe_last_row = 963
 {0xC826, 0x0020},	//cam_sensor_cfg_reg_0_data = 32
-{0xC834, 0x0000},	//cam_sensor_control_read_mode = 0
+#if 0
+{0xC834, 0x0000},	//cam_sensor_control_read_mode = 0				// 325
+#else
+{0xC834, 0x0003},	//cam_sensor_control_read_mode = 3 (h&v flip) 	// Cayman
+#endif
 {0xC854, 0x0000},	//cam_crop_window_xoffset = 0
 {0xC856, 0x0000},	//cam_crop_window_yoffset = 0
 {0xC858, 0x0500},	//cam_crop_window_width = 1280              
@@ -99,8 +127,8 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0xC86A, 0x03C0},	//cam_output_height = 960                   
 {0x098E, 0xC878},	//LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x0000},	//cam_aet_aemode = 0	
-{0xC88C, 0x1E02},	//cam_aet_max_frame_rate = 5120
-{0xC88E, 0x0A00},	//cam_aet_min_frame_rate = 2560
+{0xC88C, 0x0800},		//cam_aet_max_frame_rate = 5120 *****
+{0xC88E, 0x0800},		//cam_aet_min_frame_rate = 2560 *****
 {0xC914, 0x0000},	//cam_stat_awb_clip_window_xstart = 0
 {0xC916, 0x0000},	//cam_stat_awb_clip_window_ystart = 0
 {0xC918, 0x04FF},	//cam_stat_awb_clip_window_xend = 1279
@@ -125,8 +153,8 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x30D4, 0x6080},
 {0xA802, 0x0008},	// AE_TRACK_MODE
 {0x3E14, 0xFF39},	
-//{0x301A, 0x0234},
-{0x301A, 0x0000},	// john.park, 2011-05-09, To replace reset reg check
+{0x301A, 0x0234},
+
 
 
 //Patch 0202	
@@ -288,19 +316,17 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x098E, 0x6004},	// LOGICA_ADDRESS_ACCESS		===== 32
 {0x0990, 0x4103},	// PATCHLDR_FIRMWARE_ID
 {0x0992, 0x0202},	// PATCHLDR_FIRMWARE_ID
-//{0x0080, 0xFFF0},	// COMMAND_REGISTER
-{0x0080, 0x8000},	// john.park, 2011-05-09, To replace Patch writing
-{0xFFFF, 0x0032},
+{0x0080, 0xFFF0},	// COMMAND_REGISTER
+{0xFFFF, 0x0064},
 //POLL_FIELD= COMMAND_REGISTER, HOST_COMMAND_0, !=0, DELAY=10, TIMEOUT=100
 //===> 0x0080 번지 0bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크.
 //DELAY 100
-//0x0080, 0xFFF1, 	// COMMAND_REGISTER
-{0x0080, 0x0001},	// john.park, 2011-05-09, To replace Patch check
-//{0x0080, 0xFFF1},
+//0x0080, 0xFFF1 	// COMMAND_REGISTER
+{0x0080, 0xFFF1},
 //POLL_FIELD= COMMAND_REGISTER, HOST_COMMAND_0, !=0, DELAY=10, TIMEOUT=100
 //===> 0x0080 번지 0bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크.
 //DELAY 100
-{0xFFFF, 0x0032},
+{0xFFFF, 0x0064},
 //ERROR_IF= COMMAND_REGISTER, HOST_COMMAND_OK, !=1, "Couldn't apply patch",
 //===> 0x0080 번지 15bit자리가 1이 아니면 메세지 뿌림.  "Couldn't apply patch"                 
 //ERROR_IF= PATCHLDR_APPLY_STATUS, !=0, "Apply status non-zero",
@@ -828,18 +854,16 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x098E, 0x6004},	// LOGICAL_ADDRESS_ACCESS		===== 32
 {0x0990, 0x4103},	// PATCHLDR_FIRMWARE_ID
 {0x0992, 0x0202},	// PATCHLDR_FIRMWARE_ID
-{0x0080, 0x8000},	// john.park, 2011-05-09, To replace Patch check
-//{0x0080, 0xFFF0},	// COMMAND_REGISTER
-//POLL_FIELD= COMMAND_REGISTER, HOST_COMMAND_0, !=0, DELAY=10, TIMEOUT=100
-//===> 0x0080 번지 0bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크. 
-//DELAY 100
-{0xFFFF, 0x0032},
-{0x0080, 0x0001}, 	// john.park, 2011-05-09, To replace Patch check
-//{0x0080, 0xFFF1}, 	// COMMAND_REGISTER
+{0x0080, 0xFFF0},	// COMMAND_REGISTER
 //POLL_FIELD= COMMAND_REGISTER, HOST_COMMAND_0, !=0, DELAY=10, TIMEOUT=100
 //===> 0x0080 번지 0bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크. 
 //DELAY 100   
-{0xFFFF, 0x0032},
+{0xFFFF, 0x0064},
+{0x0080, 0xFFF1}, 	// COMMAND_REGISTER
+//POLL_FIELD= COMMAND_REGISTER, HOST_COMMAND_0, !=0, DELAY=10, TIMEOUT=100
+//===> 0x0080 번지 0bit자리가 0이 아니면 10ms씩 delay주면서 max100ms안에서 계속 체크. 
+//DELAY 100   
+{0xFFFF, 0x0064},
 //ERROR_IF= COMMAND_REGISTER, HOST_COMMAND_OK, !=1, "Couldn't apply patch",
 //===> 0x0080 번지 15bit자리가 1이 아니면 메세지 뿌림.  "Couldn't apply patch" 
 //ERROR_IF= PATCHLDR_APPLY_STATUS, !=0, "Apply status non-zero",
@@ -1210,269 +1234,258 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 
 #else
 //[Step4-APGA]
-//[APGA Settings 90% 2011/10/10 06:01:42]
-{0x3640, 0x00D0}, 	//  P_G1_P0Q0
-{0x3642, 0xD7AA}, 	//  P_G1_P0Q1
-{0x3644, 0x0791}, 	//  P_G1_P0Q2
-{0x3646, 0xD2CD}, 	//  P_G1_P0Q3
-{0x3648, 0xF8B0}, 	//  P_G1_P0Q4
-{0x364A, 0x0190}, 	//  P_R_P0Q0
-{0x364C, 0x90EA}, 	//  P_R_P0Q1
-{0x364E, 0x0651}, 	//  P_R_P0Q2
-{0x3650, 0xA54D}, 	//  P_R_P0Q3
-{0x3652, 0xD190}, 	//  P_R_P0Q4
-{0x3654, 0x0170}, 	//  P_B_P0Q0
-{0x3656, 0x51AB}, 	//  P_B_P0Q1
-{0x3658, 0x4570}, 	//  P_B_P0Q2
-{0x365A, 0x86AD}, 	//  P_B_P0Q3
-{0x365C, 0x9590}, 	//  P_B_P0Q4
-{0x365E, 0x00D0}, 	//  P_G2_P0Q0
-{0x3660, 0xDB2A}, 	//  P_G2_P0Q1
-{0x3662, 0x0751}, 	//  P_G2_P0Q2
-{0x3664, 0xD0CD}, 	//  P_G2_P0Q3
-{0x3666, 0xF6D0}, 	//  P_G2_P0Q4
-{0x3680, 0xBB4C}, 	//  P_G1_P1Q0
-{0x3682, 0x44EB}, 	//  P_G1_P1Q1
-{0x3684, 0x0BCE}, 	//  P_G1_P1Q2
-{0x3686, 0xD1AA}, 	//  P_G1_P1Q3
-{0x3688, 0x368C}, 	//  P_G1_P1Q4
-{0x368A, 0xACAD}, 	//  P_R_P1Q0
-{0x368C, 0x1DEC}, 	//  P_R_P1Q1
-{0x368E, 0x43CE}, 	//  P_R_P1Q2
-{0x3690, 0x9B2B}, 	//  P_R_P1Q3
-{0x3692, 0x7A0E}, 	//  P_R_P1Q4
-{0x3694, 0xAB2B}, 	//  P_B_P1Q0
-{0x3696, 0x4369}, 	//  P_B_P1Q1
-{0x3698, 0xB2CC}, 	//  P_B_P1Q2
-{0x369A, 0x814D}, 	//  P_B_P1Q3
-{0x369C, 0x216F}, 	//  P_B_P1Q4
-{0x369E, 0xBD8C}, 	//  P_G2_P1Q0
-{0x36A0, 0x2EAB}, 	//  P_G2_P1Q1
-{0x36A2, 0x126E}, 	//  P_G2_P1Q2
-{0x36A4, 0xA069}, 	//  P_G2_P1Q3
-{0x36A6, 0x1D2C}, 	//  P_G2_P1Q4
-{0x36C0, 0x0671}, 	//  P_G1_P2Q0
-{0x36C2, 0x8B2F}, 	//  P_G1_P2Q1
-{0x36C4, 0xFBF0}, 	//  P_G1_P2Q2
-{0x36C6, 0x336E}, 	//  P_G1_P2Q3
-{0x36C8, 0xD892}, 	//  P_G1_P2Q4
-{0x36CA, 0x1011}, 	//  P_R_P2Q0
-{0x36CC, 0xECCD}, 	//  P_R_P2Q1
-{0x36CE, 0x9D51}, 	//  P_R_P2Q2
-{0x36D0, 0xCB4E}, 	//  P_R_P2Q3
-{0x36D2, 0xC272}, 	//  P_R_P2Q4
-{0x36D4, 0x3D10}, 	//  P_B_P2Q0
-{0x36D6, 0x888D}, 	//  P_B_P2Q1
-{0x36D8, 0xDCD0}, 	//  P_B_P2Q2
-{0x36DA, 0x8E2F}, 	//  P_B_P2Q3
-{0x36DC, 0x9AD2}, 	//  P_B_P2Q4
-{0x36DE, 0x0651}, 	//  P_G2_P2Q0
-{0x36E0, 0x884F}, 	//  P_G2_P2Q1
-{0x36E2, 0xF750}, 	//  P_G2_P2Q2
-{0x36E4, 0x2CCE}, 	//  P_G2_P2Q3
-{0x36E6, 0xDEF2}, 	//  P_G2_P2Q4
-{0x3700, 0x292F}, 	//  P_G1_P3Q0
-{0x3702, 0x4AED}, 	//  P_G1_P3Q1
-{0x3704, 0x6470}, 	//  P_G1_P3Q2
-{0x3706, 0x9250}, 	//  P_G1_P3Q3
-{0x3708, 0x9FB3}, 	//  P_G1_P3Q4
-{0x370A, 0x378F}, 	//  P_R_P3Q0
-{0x370C, 0xFFAA}, 	//  P_R_P3Q1
-{0x370E, 0x17D1}, 	//  P_R_P3Q2
-{0x3710, 0xE66E}, 	//  P_R_P3Q3
-{0x3712, 0xC9F3}, 	//  P_R_P3Q4
-{0x3714, 0x224F}, 	//  P_B_P3Q0
-{0x3716, 0x0AAD}, 	//  P_B_P3Q1
-{0x3718, 0x01D1}, 	//  P_B_P3Q2
-{0x371A, 0x2E2F}, 	//  P_B_P3Q3
-{0x371C, 0x8393}, 	//  P_B_P3Q4
-{0x371E, 0x2B0F}, 	//  P_G2_P3Q0
-{0x3720, 0x04EE}, 	//  P_G2_P3Q1
-{0x3722, 0x5E70}, 	//  P_G2_P3Q2
-{0x3724, 0xA530}, 	//  P_G2_P3Q3
-{0x3726, 0x9FD3}, 	//  P_G2_P3Q4
-{0x3740, 0xFBF0}, 	//  P_G1_P4Q0
-{0x3742, 0xAFCF}, 	//  P_G1_P4Q1
-{0x3744, 0xCF53}, 	//  P_G1_P4Q2
-{0x3746, 0x1032}, 	//  P_G1_P4Q3
-{0x3748, 0x62D5}, 	//  P_G1_P4Q4
-{0x374A, 0xCDB0}, 	//  P_R_P4Q0
-{0x374C, 0xD950}, 	//  P_R_P4Q1
-{0x374E, 0xBBF3}, 	//  P_R_P4Q2
-{0x3750, 0x55F2}, 	//  P_R_P4Q3
-{0x3752, 0x4E95}, 	//  P_R_P4Q4
-{0x3754, 0xCEAE}, 	//  P_B_P4Q0
-{0x3756, 0xBA90}, 	//  P_B_P4Q1
-{0x3758, 0xA353}, 	//  P_B_P4Q2
-{0x375A, 0x0B12}, 	//  P_B_P4Q3
-{0x375C, 0x2C75}, 	//  P_B_P4Q4
-{0x375E, 0xFBF0}, 	//  P_G2_P4Q0
-{0x3760, 0xC4AF}, 	//  P_G2_P4Q1
-{0x3762, 0xCFF3}, 	//  P_G2_P4Q2
-{0x3764, 0x1152}, 	//  P_G2_P4Q3
-{0x3766, 0x6595}, 	//  P_G2_P4Q4
-{0x3784, 0x0294}, 	//  CENTER_COLUMN
-{0x3782, 0x01B0}, 	//  CENTER_ROW
-{0x37C0, 0x0FE9}, 	//  P_GR_Q5
-{0x37C2, 0x7768}, 	//  P_RD_Q5
-{0x37C4, 0xF829}, 	//  P_BL_Q5
-{0x37C6, 0x1909}, 	//  P_GB_Q5
+//[APGA Settings 100% 2011/09/22 11:59:56]
+{0x3640, 0x0330}, 	//  P_G1_P0Q0
+{0x3642, 0x1A2A}, 	//  P_G1_P0Q1
+{0x3644, 0x35CF}, 	//  P_G1_P0Q2
+{0x3646, 0x0ECB}, 	//  P_G1_P0Q3
+{0x3648, 0x842E}, 	//  P_G1_P0Q4
+{0x364A, 0x02D0}, 	//  P_R_P0Q0
+{0x364C, 0x5549}, 	//  P_R_P0Q1
+{0x364E, 0x37CF}, 	//  P_R_P0Q2
+{0x3650, 0x42ED}, 	//  P_R_P0Q3
+{0x3652, 0x180B}, 	//  P_R_P0Q4
+{0x3654, 0x06F0}, 	//  P_B_P0Q0
+{0x3656, 0x868C}, 	//  P_B_P0Q1
+{0x3658, 0x20E9}, 	//  P_B_P0Q2
+{0x365A, 0x01AF}, 	//  P_B_P0Q3
+{0x365C, 0x7FAF}, 	//  P_B_P0Q4
+{0x365E, 0x0390}, 	//  P_G2_P0Q0
+{0x3660, 0x150A}, 	//  P_G2_P0Q1
+{0x3662, 0x366F}, 	//  P_G2_P0Q2
+{0x3664, 0x1A2B}, 	//  P_G2_P0Q3
+{0x3666, 0x836E}, 	//  P_G2_P0Q4
+{0x3680, 0x34AD}, 	//  P_G1_P1Q0
+{0x3682, 0xCCEA}, 	//  P_G1_P1Q1
+{0x3684, 0xA030}, 	//  P_G1_P1Q2
+{0x3686, 0x05F0}, 	//  P_G1_P1Q3
+{0x3688, 0x33D1}, 	//  P_G1_P1Q4
+{0x368A, 0x142D}, 	//  P_R_P1Q0
+{0x368C, 0x00AC}, 	//  P_R_P1Q1
+{0x368E, 0xF72F}, 	//  P_R_P1Q2
+{0x3690, 0x68AF}, 	//  P_R_P1Q3
+{0x3692, 0x24D1}, 	//  P_R_P1Q4
+{0x3694, 0x016E}, 	//  P_B_P1Q0
+{0x3696, 0xDCAD}, 	//  P_B_P1Q1
+{0x3698, 0xDD30}, 	//  P_B_P1Q2
+{0x369A, 0x4ED0}, 	//  P_B_P1Q3
+{0x369C, 0x7D31}, 	//  P_B_P1Q4
+{0x369E, 0x354D}, 	//  P_G2_P1Q0
+{0x36A0, 0xC10A}, 	//  P_G2_P1Q1
+{0x36A2, 0xA050}, 	//  P_G2_P1Q2
+{0x36A4, 0x0650}, 	//  P_G2_P1Q3
+{0x36A6, 0x33F1}, 	//  P_G2_P1Q4
+{0x36C0, 0x2191}, 	//  P_G1_P2Q0
+{0x36C2, 0x334D}, 	//  P_G1_P2Q1
+{0x36C4, 0x1910}, 	//  P_G1_P2Q2
+{0x36C6, 0xA792}, 	//  P_G1_P2Q3
+{0x36C8, 0xC993}, 	//  P_G1_P2Q4
+{0x36CA, 0x04F1}, 	//  P_R_P2Q0
+{0x36CC, 0x538F}, 	//  P_R_P2Q1
+{0x36CE, 0x08B2}, 	//  P_R_P2Q2
+{0x36D0, 0xF252}, 	//  P_R_P2Q3
+{0x36D2, 0x9734}, 	//  P_R_P2Q4
+{0x36D4, 0x5990}, 	//  P_B_P2Q0
+{0x36D6, 0x4C30}, 	//  P_B_P2Q1
+{0x36D8, 0x6E52}, 	//  P_B_P2Q2
+{0x36DA, 0xB3B3}, 	//  P_B_P2Q3
+{0x36DC, 0xD6D4}, 	//  P_B_P2Q4
+{0x36DE, 0x21D1}, 	//  P_G2_P2Q0
+{0x36E0, 0x548D}, 	//  P_G2_P2Q1
+{0x36E2, 0x2CF0}, 	//  P_G2_P2Q2
+{0x36E4, 0xAC52}, 	//  P_G2_P2Q3
+{0x36E6, 0xD213}, 	//  P_G2_P2Q4
+{0x3700, 0x8ECF}, 	//  P_G1_P3Q0
+{0x3702, 0x4AD0}, 	//  P_G1_P3Q1
+{0x3704, 0x5432}, 	//  P_G1_P3Q2
+{0x3706, 0x8E53}, 	//  P_G1_P3Q3
+{0x3708, 0xAB94}, 	//  P_G1_P3Q4
+{0x370A, 0xDE8F}, 	//  P_R_P3Q0
+{0x370C, 0x4AB0}, 	//  P_R_P3Q1
+{0x370E, 0x6752}, 	//  P_R_P3Q2
+{0x3710, 0x95B3}, 	//  P_R_P3Q3
+{0x3712, 0xB914}, 	//  P_R_P3Q4
+{0x3714, 0xDF4F}, 	//  P_B_P3Q0
+{0x3716, 0x2A51}, 	//  P_B_P3Q1
+{0x3718, 0x0EB3}, 	//  P_B_P3Q2
+{0x371A, 0xDB53}, 	//  P_B_P3Q3
+{0x371C, 0xEA94}, 	//  P_B_P3Q4
+{0x371E, 0x8E0F}, 	//  P_G2_P3Q0
+{0x3720, 0x4890}, 	//  P_G2_P3Q1
+{0x3722, 0x53B2}, 	//  P_G2_P3Q2
+{0x3724, 0x8EB3}, 	//  P_G2_P3Q3
+{0x3726, 0xAB94}, 	//  P_G2_P3Q4
+{0x3740, 0x8A10}, 	//  P_G1_P4Q0
+{0x3742, 0xAC91}, 	//  P_G1_P4Q1
+{0x3744, 0x9714}, 	//  P_G1_P4Q2
+{0x3746, 0x4BD4}, 	//  P_G1_P4Q3
+{0x3748, 0x0876}, 	//  P_G1_P4Q4
+{0x374A, 0x5D30}, 	//  P_R_P4Q0
+{0x374C, 0xA332}, 	//  P_R_P4Q1
+{0x374E, 0xF614}, 	//  P_R_P4Q2
+{0x3750, 0x0735}, 	//  P_R_P4Q3
+{0x3752, 0x30B6}, 	//  P_R_P4Q4
+{0x3754, 0x7970}, 	//  P_B_P4Q0
+{0x3756, 0x8973}, 	//  P_B_P4Q1
+{0x3758, 0xACB5}, 	//  P_B_P4Q2
+{0x375A, 0x5A95}, 	//  P_B_P4Q3
+{0x375C, 0x0477}, 	//  P_B_P4Q4
+{0x375E, 0x86B0}, 	//  P_G2_P4Q0
+{0x3760, 0xBBB1}, 	//  P_G2_P4Q1
+{0x3762, 0xA094}, 	//  P_G2_P4Q2
+{0x3764, 0x55D4}, 	//  P_G2_P4Q3
+{0x3766, 0x1036}, 	//  P_G2_P4Q4
+{0x3784, 0x02DC}, 	//  CENTER_COLUMN
+{0x3782, 0x01E0}, 	//  CENTER_ROW
+{0x37C0, 0xEF8C}, 	//  P_GR_Q5
+{0x37C2, 0xD08C}, 	//  P_RD_Q5
+{0x37C4, 0xD94D}, 	//  P_BL_Q5
+{0x37C6, 0x81CD}, 	//  P_GB_Q5
 {0x098E, 0x0000}, 	//  LOGICAL addressing
-{0xC960, 0x0Af0}, 	//  CAM_PGA_L_CONFIG_COLOUR_TEMP
-{0xC962, 0x7630}, 	//  CAM_PGA_L_CONFIG_GREEN_RED_Q14
-{0xC964, 0x5CB0}, 	//  CAM_PGA_L_CONFIG_RED_Q14
-{0xC966, 0x75CE}, 	//  CAM_PGA_L_CONFIG_GREEN_BLUE_Q14
-{0xC968, 0x6BB8}, 	//  CAM_PGA_L_CONFIG_BLUE_Q14
-{0xC96A, 0x16A8}, 	//  CAM_PGA_M_CONFIG_COLOUR_TEMP
-{0xC96C, 0x8090}, 	//  CAM_PGA_M_CONFIG_GREEN_RED_Q14
-{0xC96E, 0x807C}, 	//  CAM_PGA_M_CONFIG_RED_Q14
-{0xC970, 0x8099}, 	//  CAM_PGA_M_CONFIG_GREEN_BLUE_Q14
-{0xC972, 0x7F08}, 	//  CAM_PGA_M_CONFIG_BLUE_Q14
+{0xC960, 0x0C4E}, 	//  CAM_PGA_L_CONFIG_COLOUR_TEMP
+{0xC962, 0x70EC}, 	//  CAM_PGA_L_CONFIG_GREEN_RED_Q14
+{0xC964, 0x5608}, 	//  CAM_PGA_L_CONFIG_RED_Q14
+{0xC966, 0x7028}, 	//  CAM_PGA_L_CONFIG_GREEN_BLUE_Q14
+{0xC968, 0x6888}, 	//  CAM_PGA_L_CONFIG_BLUE_Q14
+{0xC96A, 0x1036}, 	//  CAM_PGA_M_CONFIG_COLOUR_TEMP
+{0xC96C, 0x7884}, 	//  CAM_PGA_M_CONFIG_GREEN_RED_Q14
+{0xC96E, 0x797C}, 	//  CAM_PGA_M_CONFIG_RED_Q14
+{0xC970, 0x77E4}, 	//  CAM_PGA_M_CONFIG_GREEN_BLUE_Q14
+{0xC972, 0x726C}, 	//  CAM_PGA_M_CONFIG_BLUE_Q14
 {0xC974, 0x1964}, 	//  CAM_PGA_R_CONFIG_COLOUR_TEMP
-{0xC976, 0x795F}, 	//  CAM_PGA_R_CONFIG_GREEN_RED_Q14
-{0xC978, 0x6A04}, 	//  CAM_PGA_R_CONFIG_RED_Q14
-{0xC97A, 0x7918}, 	//  CAM_PGA_R_CONFIG_GREEN_BLUE_Q14
-{0xC97C, 0x7C22}, 	//  CAM_PGA_R_CONFIG_BLUE_Q14
+{0xC976, 0x71D0}, 	//  CAM_PGA_R_CONFIG_GREEN_RED_Q14
+{0xC978, 0x6114}, 	//  CAM_PGA_R_CONFIG_RED_Q14
+{0xC97A, 0x7158}, 	//  CAM_PGA_R_CONFIG_GREEN_BLUE_Q14
+{0xC97C, 0x7592}, 	//  CAM_PGA_R_CONFIG_BLUE_Q14
 {0xC95E, 0x0003}, 	//  CAM_PGA_PGA_CONTROL
 //[AE]
 {0x098E, 0xC87A},	//			===== 8
 {0x0990, 0x3E00}, 	// CAM_AET_TARGET_AVERAGE_LUMA
-
-//[AE weight update 1]
-{0x098E, 0x2404},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_ALGO]
-{0xA404, 0x0001},	// AE_RULE_ALGO
-{0x098E, 0xA407},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_0_0]
-{0x0990, 0x1900},
-{0x098E, 0xA408},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_0_1]
-{0x0990, 0x1900},
-{0x098E, 0xA409},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_0_2]
-{0x0990, 0x1900},
-{0x098E, 0xA40A},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_0_3]
-{0x0990, 0x1900},
-{0x098E, 0xA40B},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_0_4]
-{0x0990, 0x1900},
-{0x098E, 0xA40C},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_1_0]
-{0x0990, 0x1900},
-{0x098E, 0xA40D},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_1_1]
-{0x0990, 0x4B00},
-{0x098E, 0xA40E},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_1_2]
-{0x0990, 0x4B00},
-{0x098E, 0xA40F},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_1_3]
-{0x0990, 0x4B00},
-{0x098E, 0xA410},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_1_4]
-{0x0990, 0x1900},
-{0x098E, 0xA411},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_2_0]
-{0x0990, 0x1900},
-{0x098E, 0xA412},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_2_1]
-{0x0990, 0x4B00},
-{0x098E, 0xA413},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_2_2]
-{0x0990, 0x6400},
-{0x098E, 0xA414},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_2_3]
-{0x0990, 0x4B00},
-{0x098E, 0xA415},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_2_4]
-{0x0990, 0x1900},
-{0x098E, 0xA416},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_3_0]
-{0x0990, 0x1900},
-{0x098E, 0xA417},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_3_1]
-{0x0990, 0x4B00},
-{0x098E, 0xA418},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_3_2]
-{0x0990, 0x4B00},
-{0x098E, 0xA419},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_3_3]
-{0x0990, 0x4B00},
-{0x098E, 0xA41A},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_3_4]
-{0x0990, 0x1900},
-{0x098E, 0xA41B},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_4_0]
-{0x0990, 0x1900},
-{0x098E, 0xA41C},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_4_1]
-{0x0990, 0x1900},
-{0x098E, 0xA41D},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_4_2]
-{0x0990, 0x1900},
-{0x098E, 0xA41E},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_4_3]
-{0x0990, 0x1900},
-{0x098E, 0xA41F},	// LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_4_4]
-{0x0990, 0x1900},
+{0x098E, 0xBC07},		//			===== 8
+{0x0990, 0x0000}, 	// LL_GAMMA_SELECT  
+//[Gamma] 
+{0x098E, 0xBC0A},	//			===== 8
+{0x0990, 0x0000},	// LL_GAMMA_CONTRAST_CURVE_0
+{0x098E, 0xBC0B},	//			===== 8
+{0x0990, 0x0A00},	// LL_GAMMA_CONTRAST_CURVE_1
+{0x098E, 0xBC0C},	//			===== 8
+{0x0990, 0x1D00},	// LL_GAMMA_CONTRAST_CURVE_2
+{0x098E, 0xBC0D},	//			===== 8
+{0x0990, 0x3700},	// LL_GAMMA_CONTRAST_CURVE_3
+{0x098E, 0xBC0E},	//			===== 8
+{0x0990, 0x5800},	// LL_GAMMA_CONTRAST_CURVE_4
+{0x098E, 0xBC0F},	//			===== 8
+{0x0990, 0x7100},	// LL_GAMMA_CONTRAST_CURVE_5
+{0x098E, 0xBC10},	//			===== 8
+{0x0990, 0x8600},	// LL_GAMMA_CONTRAST_CURVE_6
+{0x098E, 0xBC11},	//			===== 8
+{0x0990, 0x9800},	// LL_GAMMA_CONTRAST_CURVE_7
+{0x098E, 0xBC12},	//			===== 8
+{0x0990, 0xA700},	// LL_GAMMA_CONTRAST_CURVE_8   
+{0x098E, 0xBC13},	//			===== 8
+{0x0990, 0xAA00},	// LL_GAMMA_CONTRAST_CURVE_9
+{0x098E, 0xBC14},	//			===== 8
+{0x0990, 0xB400},	// LL_GAMMA_CONTRAST_CURVE_10
+{0x098E, 0xBC15},	//			===== 8
+{0x0990, 0xB900},	// LL_GAMMA_CONTRAST_CURVE_11
+{0x098E, 0xBC16},	//			===== 8
+{0x0990, 0xBE00},	// LL_GAMMA_CONTRAST_CURVE_12
+{0x098E, 0xBC17},	//			===== 8
+{0x0990, 0xC300},	// LL_GAMMA_CONTRAST_CURVE_13
+{0x098E, 0xBC18},	//			===== 8
+{0x0990, 0xC800},	// LL_GAMMA_CONTRAST_CURVE_14
+{0x098E, 0xBC19},	//			===== 8
+{0x0990, 0xCD00},	// LL_GAMMA_CONTRAST_CURVE_15
+{0x098E, 0xBC1A},	//			===== 8
+{0x0990, 0xD200},	// LL_GAMMA_CONTRAST_CURVE_16
+{0x098E, 0xBC1B},	//			===== 8
+{0x0990, 0xD700},	// LL_GAMMA_CONTRAST_CURVE_17
+{0x098E, 0xBC1C},	//			===== 8
+{0x0990, 0xDC00},	// LL_GAMMA_CONTRAST_CURVE_18
+{0x098E, 0xBC1F},	//			===== 8                        	
+{0x0990, 0x1D00}, 	// LL_GAMMA_NRCURVE_2                                   
+{0x098E, 0xBC20},	//			===== 8                        	
+{0x0990, 0x3700}, 	// LL_GAMMA_NRCURVE_3
+{0x098E, 0xBC21},	//			===== 8                        	
+{0x0990, 0x5800}, 	// LL_GAMMA_NRCURVE_4
+{0x098E, 0xBC22},	//			===== 8                        	
+{0x0990, 0x7100}, 	// LL_GAMMA_NRCURVE_5
 
 //[Step5-AWB_CCM]
-{0x098E, 0xC873},
-{0x0990, 0x0100},	// hue angle
-{0xC892, 0x029B}, 	// CAM_AWB_CCM_L_0
-{0xC894, 0xFF03}, 	// CAM_AWB_CCM_L_1
-{0xC896, 0xFF8D}, 	// CAM_AWB_CCM_L_2
-{0xC898, 0xFF4C}, 	// CAM_AWB_CCM_L_3
-{0xC89A, 0x0329}, 	// CAM_AWB_CCM_L_4
-{0xC89C, 0xFFED}, 	// CAM_AWB_CCM_L_5
-{0xC89E, 0xFF94}, 	// CAM_AWB_CCM_L_6
-{0xC8A0, 0xFEAF}, 	// CAM_AWB_CCM_L_7
-{0xC8A2, 0x0426}, 	// CAM_AWB_CCM_L_8
-{0xC8A4, 0x01B6}, 	// CAM_AWB_CCM_M_0
-{0xC8A6, 0xFFA3}, 	// CAM_AWB_CCM_M_1
-{0xC8A8, 0xFFD2}, 	// CAM_AWB_CCM_M_2
-{0xC8AA, 0xFFA6}, 	// CAM_AWB_CCM_M_3
-{0xC8AC, 0x0227}, 	// CAM_AWB_CCM_M_4
-{0xC8AE, 0xFFC8}, 	// CAM_AWB_CCM_M_5
-{0xC8B0, 0xFFDD}, 	// CAM_AWB_CCM_M_6
-{0xC8B2, 0xFEB3}, 	// CAM_AWB_CCM_M_7
-{0xC8B4, 0x02EC}, 	// CAM_AWB_CCM_M_8
-{0xC8B6, 0x0328}, 	// CAM_AWB_CCM_R_0
-{0xC8B8, 0xFED6}, 	// CAM_AWB_CCM_R_1
-{0xC8BA, 0xFFE1}, 	// CAM_AWB_CCM_R_2
-{0xC8BC, 0xFF5D}, 	// CAM_AWB_CCM_R_3
-{0xC8BE, 0x02B2}, 	// CAM_AWB_CCM_R_4
-{0xC8C0, 0xFFDE}, 	// CAM_AWB_CCM_R_5
-{0xC8C2, 0xFFEE}, 	// CAM_AWB_CCM_R_6
-{0xC8C4, 0xFF4B}, 	// CAM_AWB_CCM_R_7
-{0xC8C6, 0x01E7}, 	// CAM_AWB_CCM_R_8
-{0xC8C8, 0x0075},	// CAM_AWB_CCM_L_RG_GAIN
-{0xC8CA, 0x011C},	// CAM_AWB_CCM_L_BG_GAIN
-{0xC8CC, 0x009A},	// CAM_AWB_CCM_M_RG_GAIN
-{0xC8CE, 0x0105},	// CAM_AWB_CCM_M_BG_GAIN
-{0xC8D0, 0x00A4},	// CAM_AWB_CCM_R_RG_GAIN
-{0xC8D2, 0x00AC},	// CAM_AWB_CCM_R_BG_GAIN
-{0xC8D4, 0x0A8C},	// CAM_AWB_CCM_L_CTEMP
-{0xC8D6, 0x0F0A},	// CAM_AWB_CCM_M_CTEMP
-{0xC8D8, 0x1964},	// CAM_AWB_CCM_R_CTEMP
-{0xC914, 0x0000},	// CAM_STAT_AWB_CLIP_WINDOW_XSTART
-{0xC916, 0x0000},	// CAM_STAT_AWB_CLIP_WINDOW_YSTART
-{0xC918, 0x04FF},	// CAM_STAT_AWB_CLIP_WINDOW_XEND
-{0xC91A, 0x03BF},	// CAM_STAT_AWB_CLIP_WINDOW_YEND
-{0xC904, 0x0033},	// CAM_AWB_AWB_XSHIFT_PRE_ADJ
-{0xC906, 0x0040},	// CAM_AWB_AWB_YSHIFT_PRE_ADJ
-{0x098E, 0xC8F2},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x0400},	// CAM_AWB_AWB_XSCALE	
-{0x098E, 0xC8F3},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x0200},	// CAM_AWB_AWB_XSCALE	
-{0xC8F4, 0x0000},	// CAM_AWB_AWB_WEIGHTS_0
-{0xC8F6, 0x0000},	// CAM_AWB_AWB_WEIGHTS_1
-{0xC8F8, 0x0000},	// CAM_AWB_AWB_WEIGHTS_2
-{0xC8FA, 0xE724},	// CAM_AWB_AWB_WEIGHTS_3
-{0xC8FC, 0x1583},	// CAM_AWB_AWB_WEIGHTS_4
-{0xC8FE, 0x2045},	// CAM_AWB_AWB_WEIGHTS_5
-{0xC900, 0x061C},	// CAM_AWB_AWB_WEIGHTS_6 //0x05DC
-{0xC902, 0x007C},	// CAM_AWB_AWB_WEIGHTS_7
-{0x098E, 0x490A}, 	// LOGICAL_ADDRESS_ACCESS [CAM_AWB_TINTS_CTEMP_THRESHOLD]
-{0xC90A, 0x1838}, 	// CAM_AWB_TINTS_CTEMP_THRESHOLD
-{0x098E, 0xC90C},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x8000},	// CAM_AWB_K_R_L
-{0x098E, 0xC90D},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x8000},	// CAM_AWB_K_G_L
-{0x098E, 0xC90E},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x8000},	// CAM_AWB_K_B_L
-{0x098E, 0xC90F},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x7400},	// CAM_AWB_K_R_R
-{0x098E, 0xC910},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x8000},	// CAM_AWB_K_G_R
-{0x098E, 0xC911},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x8000},	// CAM_AWB_K_B_R
-{0x098E, 0xC912},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x0000},	// CAM_STAT_LUMA_THRESH_LOW
-{0x098E, 0xAC0C},	// LOGICAL_ADDRESS_ACCESS [AWB_B_SCENE_RATIO_LOWER]
-{0x0990, 0x2F00},	// AWB_B_SCENE_RATIO_LOWER //0x3500
-
-{0x098E, 0xAC16},	// AWB_PRE_AWB_RATIOS_TRACKING_SPEED		// 2011.07.04
+{0xC892, 0x0267},		// CAM_AWB_CCM_L_0                                                                                         
+{0xC894, 0xFF1A},		// CAM_AWB_CCM_L_1
+{0xC896, 0xFFB3},		// CAM_AWB_CCM_L_2
+{0xC898, 0xFF80},		// CAM_AWB_CCM_L_3
+{0xC89A, 0x0166},		// CAM_AWB_CCM_L_4
+{0xC89C, 0x0003},		// CAM_AWB_CCM_L_5
+{0xC89E, 0xFF9A},		// CAM_AWB_CCM_L_6
+{0xC8A0, 0xFEB4},		// CAM_AWB_CCM_L_7
+{0xC8A2, 0x024D},		// CAM_AWB_CCM_L_8
+{0xC8A4, 0x01BF},		// CAM_AWB_CCM_M_0
+{0xC8A6, 0xFF01},		// CAM_AWB_CCM_M_1
+{0xC8A8, 0xFFF3},		// CAM_AWB_CCM_M_2 
+{0xC8AA, 0xFF8F},		// CAM_AWB_CCM_M_3 
+{0xC8AC, 0x017F},		// CAM_AWB_CCM_M_4
+{0xC8AE, 0xFFFD},		// CAM_AWB_CCM_M_5
+{0xC8B0, 0xFF9A},		// CAM_AWB_CCM_M_6
+{0xC8B2, 0xFEE7},		// CAM_AWB_CCM_M_7                                                
+{0xC8B4, 0x02A8},		// CAM_AWB_CCM_M_8
+{0xC8B6, 0x0207},		// CAM_AWB_CCM_R_0
+{0xC8B8, 0xFF51},		// CAM_AWB_CCM_R_1                                              
+{0xC8BA, 0xFFA8},		// CAM_AWB_CCM_R_2                                               
+{0xC8BC, 0xFFA9},		// CAM_AWB_CCM_R_3                                               
+{0xC8BE, 0x016D},		// CAM_AWB_CCM_R_4                                               
+{0xC8C0, 0xFFEA},		// CAM_AWB_CCM_R_5 
+{0xC8C2, 0xFFDB},		// CAM_AWB_CCM_R_6                                               
+{0xC8C4, 0xFF6C},		// CAM_AWB_CCM_R_7
+{0xC8C6, 0x01B9},		// CAM_AWB_CCM_R_8
+{0xC8C8, 0x0075},		// CAM_AWB_CCM_L_RG_GAIN
+{0xC8CA, 0x011C},		// CAM_AWB_CCM_L_BG_GAIN
+{0xC8CC, 0x009A},		// CAM_AWB_CCM_M_RG_GAIN
+{0xC8CE, 0x0105},		// CAM_AWB_CCM_M_BG_GAIN
+{0xC8D0, 0x00A4}, 	// CAM_AWB_CCM_R_RG_GAIN
+{0xC8D2, 0x00AC},		// CAM_AWB_CCM_R_BG_GAIN
+{0xC8D4, 0x0A8C},		// CAM_AWB_CCM_L_CTEMP
+{0xC8D6, 0x0F0A},		// CAM_AWB_CCM_M_CTEMP
+{0xC8D8, 0x1964},		// CAM_AWB_CCM_R_CTEMP
+{0xC914, 0x0000},		// CAM_STAT_AWB_CLIP_WINDOW_XSTART
+{0xC916, 0x0000},		// CAM_STAT_AWB_CLIP_WINDOW_YSTART
+{0xC918, 0x04FF},		// CAM_STAT_AWB_CLIP_WINDOW_XEND
+{0xC91A, 0x03BF},		// CAM_STAT_AWB_CLIP_WINDOW_YEND
+{0xC904, 0x0033},		// CAM_AWB_AWB_XSHIFT_PRE_ADJ
+{0xC906, 0x0040},		// CAM_AWB_AWB_YSHIFT_PRE_ADJ
+{0x098E, 0xC8F2},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x0400},		// CAM_AWB_AWB_XSCALE	
+{0x098E, 0xC8F3},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x0200},		// CAM_AWB_AWB_XSCALE	
+{0xC8F4, 0x0000},		// CAM_AWB_AWB_WEIGHTS_0
+{0xC8F6, 0x0000},		// CAM_AWB_AWB_WEIGHTS_1
+{0xC8F8, 0x0000},		// CAM_AWB_AWB_WEIGHTS_2
+{0xC8FA, 0xE724},		// CAM_AWB_AWB_WEIGHTS_3
+{0xC8FC, 0x1583},		// CAM_AWB_AWB_WEIGHTS_4
+{0xC8FE, 0x2045},		// CAM_AWB_AWB_WEIGHTS_5
+{0xC900, 0x061C},			// 0x05DC},		// CAM_AWB_AWB_WEIGHTS_6
+{0xC902, 0x007C},		// CAM_AWB_AWB_WEIGHTS_7
+{0x098E, 0xC90C},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x5000},		// CAM_AWB_K_R_L
+{0x098E, 0xC90D},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x8800},		// CAM_AWB_K_G_L
+{0x098E, 0xC90E},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x8000},		// CAM_AWB_K_B_L
+{0x098E, 0xC90F},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x7300},		// CAM_AWB_K_R_R
+{0x098E, 0xC910},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x7B00},		// CAM_AWB_K_G_R
+{0x098E, 0xC911},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x7800},		// CAM_AWB_K_B_R
+{0x098E, 0xC912},		// LOGICAL_ADDRESS_ACCESS			===== 8
+{0x0990, 0x0000},		// CAM_STAT_LUMA_THRESH_LOW
+{0x098E, 0xAC0C},         // LOGICAL_ADDRESS_ACCESS [AWB_B_SCENE_RATIO_LOWER]
+{0x0990, 0x2F00}, //0x3500,               // AWB_B_SCENE_RATIO_LOWER
+{0x098E, 0xAC16},		// AWB_PRE_AWB_RATIOS_TRACKING_SPEED   // 2011.07.04
 {0x0990, 0x2000},
-{0x098E, 0xAC17},	// AWB_STATISTICS_TRACKING_SPEED			// 2011.07.04
+{0x098E, 0xAC17},		// AWB_STATISTICS_TRACKING_SPEED  // 2011.07.04
 {0x0990, 0x2000},
-
 //[Step7-CPIPE_Preference]
 {0x098E, 0x3C02}, 	// LOGICAL_ADDRESS_ACCESS [LL_MODE]
 {0xBC02, 0x000D}, 	// LL_MODE
@@ -1491,7 +1504,7 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x098E, 0xC92D},	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x9F00},	// CAM_LL_END_DESATURATION
 {0x098E, 0xC92E},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x7000},	// CAM_LL_START_DEMOSAIC		// 2011.07.04
+{0x0990, 0x3200},	//{0x0990, 0x7000},	// CAM_LL_START_DEMOSAIC		// 2011.07.04	// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC95B},	// LOGICAL_ADDRESS_ACCESS			===== 8 			
 {0x0990, 0x0000},	// CAM_SEQ_DARK_COLOR_KILL
 {0x098E, 0xC95C},	// LOGICAL_ADDRESS_ACCESS			===== 8  
@@ -1499,7 +1512,7 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x098E, 0x4948},	// LOGICAL_ADDRESS_ACCESS                 
 {0xC948, 0x01A0},	// CAM_LL_STOP_GAIN_METRIC                                                
 {0x098E, 0xC92F},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x0500},	// CAM_LL_START_AP_GAIN
+{0x0990, 0x0700},	//{0x0990, 0x0500},	// CAM_LL_START_AP_GAIN							// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC930},	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x0200},	// CAM_LL_START_AP_THRESH
 {0x098E, 0xC931},	// LOGICAL_ADDRESS_ACCESS			===== 8
@@ -1509,13 +1522,13 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x098E, 0xC933},	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x0C00},	// CAM_LL_STOP_AP_THRESH
 {0x098E, 0xC934},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x3600},	// CAM_LL_START_NR_RED
+{0x0990, 0x3200},	//{0x0990, 0x3600},	// CAM_LL_START_NR_RED							// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC935},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x1800},	// CAM_LL_START_NR_GREEN
+{0x0990, 0x1400},	//{0x0990, 0x1800},	// CAM_LL_START_NR_GREEN							// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC936},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x3600},	// CAM_LL_START_NR_BLUE
+{0x0990, 0x3200},	//{0x0990, 0x3600},	// CAM_LL_START_NR_BLUE							// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC937},	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x1800},	// CAM_LL_START_NR_THRESH
+{0x0990, 0x1400},	//{0x0990, 0x1800},	// CAM_LL_START_NR_THRESH						// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC938},	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x5000},	// CAM_LL_STOP_NR_RED
 {0x098E, 0xC939},	// LOGICAL_ADDRESS_ACCESS			===== 8
@@ -1526,7 +1539,7 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x0990, 0x5000},	// CAM_LL_STOP_NR_THRESH
 {0xC93C, 0x0020},	// CAM_LL_START_CONTRAST_BM
 {0xC93E, 0x009A},	// CAM_LL_STOP_CONTRAST_BM
-{0xC940, 0x00DC},	// CAM_LL_GAMMA
+{0xC940, 0x00Df},		// CAM_LL_GAMMA
 {0x098E, 0xC942},	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x4000},	// CAM_LL_START_CONTRAST_GRADIENT
 // 0xC942, 0x38 	// CAM_LL_START_CONTRAST_GRADIENT
@@ -1537,11 +1550,11 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x0990, 0x6400},	// CAM_LL_START_CONTRAST_LUMA_PERCENTAGE
 // 0xC944, 0x50		// CAM_LL_START_CONTRAST_LUMA_PERCENTAGE
 {0x098E, 0xC945}, 	// LOGICAL_ADDRESS_ACCESS			===== 8
-{0x0990, 0x6400},	// CAM_LL_STOP_CONTRAST_LUMA_PERCENTAGE
+{0x0990, 0x2800},		// CAM_LL_STOP_CONTRAST_LUMA_PERCENTAGE
 // 0xC945, 0x19		// CAM_LL_STOP_CONTRAST_LUMA_PERCENTAGE
 {0xC94A, 0x0230}, 	// CAM_LL_START_FADE_TO_BLACK_LUMA
 {0xC94C, 0x0010}, 	// CAM_LL_STOP_FADE_TO_BLACK_LUMA
-{0xC94E, 0x000E}, 	// CAM_LL_CLUSTER_DC_TH_BM	//2011.08.10 // 2011.07.04(0x01CD)
+{0xC94E, 0x000E},	//{0xC94E, 0x01CD}, 	// CAM_LL_CLUSTER_DC_TH_BM					// SKT IOT 2nd (2012-01-07) : Change Sharpness
 {0x098E, 0xC950}, 	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x0500},	// CAM_LL_CLUSTER_DC_GATE_PERCENTAGE
 {0x098E, 0xC951}, 	// LOGICAL_ADDRESS_ACCESS			===== 8
@@ -1551,8 +1564,9 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0x098E, 0xC878}, 	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x0800},	// CAM_AET_AEMODE = 0
 {0xC890, 0x0080}, 	// CAM_AET_TARGET_GAIN
-{0xC886, 0x0100}, 	// CAM_AET_AE_MAX_VIRT_AGAIN
-{0xC87C, 0x000A},	// CAM_AET_BLACK_CLIPPING_TARGET
+{0xC882, 0x00C0}, 	//0x00AF//Dgain
+{0xC886, 0x01F8}, 	// CAM_AET_AE_MAX_VIRT_AGAIN
+{0xC87C, 0x0005},		//	5A 	// CAM_AET_BLACK_CLIPPING_TARGET
 {0x098E, 0xB00C}, 	// LOGICAL_ADDRESS_ACCESS			===== 8
 {0x0990, 0x2500},	// BLACKLEVEL_MAX_BLACK_LEVEL     
 {0x098E, 0xB00D}, 	// LOGICAL_ADDRESS_ACCESS [BLACKLEVEL_BLACK_LEVEL_DAMPENING]			===== 8
@@ -1567,8 +1581,15 @@ struct mt9m114_i2c_reg_conf const init_tbl_sub[] =
 {0xC984, 0x8041}, 	// CAM_PORT_OUTPUT_CONTROL
 //0x3C5A, 0x0009,		/MIPI_DELAY_TRIM, this line is only needed for Aptina demo camera
 {0x001E, 0x0777}, 	// PAD_SLEW
-{0x098E, 0xB42C}, 	// LOGICAL_ADDRESS_ACCESS [CCM_GREY_SATURATION]
-{0x0990, 0x6000}, 	// CCM_GREY_SATURATION			===== 8      // 2011.07.04
+//0x098E, 0xCC03}, 	// LOGICAL_ADDRESS_ACCESS [UVC_POWER_LINE_FREQUENCY_CONTROL]			===== 8
+//0x0990, 0x0200}, 	// UVC_POWER_LINE_FREQUENCY_CONTROL  ==> 60Hz : 0x0200 , 50Hz ==>0x0100      
+// 0x098E, 0xC88B} 	// LOGICAL_ADDRESS_ACCESS [CAM_AET_FLICKER_FREQ_HZ]			===== 8
+// 0x0990, 0x3400} 	// CAM_AET_FLICKER_FREQ_HZ ==> 60Hz : 0x3400 , 50Hz ==>0x2C00
+
+
+                  
+
+
 //[Change-Config]
 //0x098E, 0xDC00, 	// LOGICAL_ADDRESS_ACCESS			===== 8
 //0x0990, 0x2800,		/ AE_TRACK_AE_TRACKING_DAMPENING_SPEED

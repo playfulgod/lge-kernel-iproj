@@ -65,6 +65,11 @@ enum{
    LM3559_STATE_ON_STROBE,
 };
 
+#if defined(CONFIG_MACH_LGE_I_BOARD_VZW) || defined(CONFIG_MACH_LGE_C1_BOARD_MPS)
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+extern int is_temp_too_cold(void);
+#endif
+#endif
 
 //Start LGE_BSP_CAMERA : Separate Flash stae for only DOCOMO - jonghwan.ko@lge.com
 #ifdef CONFIG_MACH_LGE_I_BOARD
@@ -210,7 +215,26 @@ void lm3559_enable_flash_mode(int state)
 	else{
 		/* 0110 0110 : 393.75 mA*/
 		CDBG("[LM3559_LED_HIGH]LM3559_REG_FLASH_BRIGHTNESS \n");
+		
+#if defined(CONFIG_MACH_LGE_I_BOARD_VZW) || defined(CONFIG_MACH_LGE_C1_BOARD_MPS)
+/* elin.lee@lge.com 2011-12-01 for camera flash current under 5 below zero, PV issue*/ 	
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+		if(is_temp_too_cold() == 1){
+			printk("%s: LM3559_REG_FLASH_CURRENT[0x11]\n",__func__);
+			/* 0001 : 112.5 mA */
+			lm3559_write_reg(lm3559_i2c_client,LM3559_REG_FLASH_BRIGHTNESS,0x11);
+		}
+		else
+#endif
+		{
+			printk("%s: LM3559_REG_FLASH_CURRENT[0X55]\n",__func__);
+			/* 0101 : 337.5 mA */
+			lm3559_write_reg(lm3559_i2c_client,LM3559_REG_FLASH_BRIGHTNESS,0x55);
+		}
+#else
+		/* 0110 0110 : 393.75 mA*/
 		lm3559_write_reg(lm3559_i2c_client,LM3559_REG_FLASH_BRIGHTNESS,0x66);
+#endif
 	}
 
 	lm3559_write_reg(lm3559_i2c_client,LM3559_REG_ENABLE,0x1B);
@@ -236,12 +260,12 @@ int lm3559_flash_set_led_state(int state)
 	
 	switch (state) {
 	case LM3559_STATE_OFF:
-		CDBG("[LM3559]LM3559_STATE_OFF\n");
+		printk("[LM3559]LM3559_STATE_OFF\n");
 		lm3559_power_onoff(LM3559_POWER_OFF);
 		lm3559_onoff_state = LM3559_POWER_OFF;
 		break;
 	case LM3559_STATE_ON_TORCH:
-		CDBG("[LM3559]LM3559_STATE_ON_TORCH\n");
+		printk("[LM3559]LM3559_STATE_ON_TORCH\n");
 		if(lm3559_onoff_state == LM3559_POWER_OFF){	
 			lm3559_power_onoff(LM3559_POWER_ON);
 			lm3559_enable_torch_mode(LM3559_LED_HIGH);
@@ -249,7 +273,7 @@ int lm3559_flash_set_led_state(int state)
 		}
 		break;
 	case LM3559_STATE_ON_STROBE:
-		CDBG("[LM3559]LM3559_STATE_ON_STROBE\n");
+		printk("[LM3559]LM3559_STATE_ON_STROBE\n");
 		if(lm3559_onoff_state == LM3559_POWER_OFF){	
 			lm3559_power_onoff(LM3559_POWER_ON);
 			lm3559_enable_flash_mode(LM3559_LED_HIGH);
@@ -290,10 +314,9 @@ static void lm3559_flash_led_set(struct led_classdev *led_cdev,
 
 	CDBG("%s:led_cdev->brightness[%d]\n",__func__,value);
 	
-    if(value) {
-        lm3559_power_onoff(LM3559_POWER_ON);
-	lm3559_enable_torch_mode((value <= LM3559_LED_MAX) ? value : LM3559_LED_LOW);
-    } else
+    if(value)
+	lm3559_enable_torch_mode(LM3559_LED_HIGH);
+    else
 	lm3559_power_onoff(LM3559_POWER_OFF);
 		
 }
@@ -305,7 +328,7 @@ static struct led_classdev lm3559_flash_led = {
 
 static int lm3559_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	unsigned short check_rev = 0;
+	//unsigned short check_rev = 0;
 	int rc = 0;
 
 	CDBG(KERN_INFO"%s: i2c probe start\n", __func__);
@@ -318,7 +341,7 @@ static int lm3559_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	led_classdev_register(&client->dev, &lm3559_flash_led);
 	
-	CDBG("%s: check_rev[0x%x] gpio_flen[%d]\n",__func__,check_rev,lm3559_led_flash_pdata->gpio_en);
+	//CDBG("%s: check_rev[0x%x] gpio_flen[%d]\n",__func__,check_rev,lm3559_led_flash_pdata->gpio_en);
 
 	gpio_request(lm3559_led_flash_pdata->gpio_en, "cam_flash_en");
 
