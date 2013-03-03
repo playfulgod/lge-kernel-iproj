@@ -5,11 +5,13 @@ make mrproper -j16
 
 make ARCH=arm q_i_mpcs_defconfig
 ARCH=arm 
-#make ARCH=arm CROSS_COMPILE=/media/playfulgod/Android1/CM10/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/arm-eabi/bin/ -j16
+ARCH=arm CROSS_COMPILE="/media/playfulgod/Android1/CM10/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-" make -j16
 #ARCH=arm CROSS_COMPILE="/media/playfulgod/Android1/CM10/prebuilts/gcc/linux-x86/arm/linaro-4.7/bin/arm-eabi-"
-ARCH=arm CROSS_COMPILE=/media/playfulgod/Android1/CM10/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi- make -j16
+#ARCH=arm CROSS_COMPILE=/media/playfulgod/Android1/CM10/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi- make -j16
 
-#${cpus} $@
+# These move files to easier locations
+mkdir arch/arm/boot/modules
+find -name '*.ko' -exec cp -av {} arch/arm/modules/ \;
 
 if [ -f arch/arm/boot/zImage ]; then
 	  echo

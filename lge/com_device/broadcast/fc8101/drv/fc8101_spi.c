@@ -63,7 +63,7 @@ static int __devinit fc8101_spi_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi->mode =  SPI_MODE_0;
 
-	ret = spi_setup(spi);
+//	ret = spi_setup(spi);
 	
 	if (ret < 0)
 		return ret;
@@ -95,7 +95,7 @@ int fc8101_spi_init(HANDLE hDevice, u16 param1, u16 param2)
 {
 	int res = 0;
 	PRINTF(0, "fc8101_spi_init : %d\n", res);
-	res = spi_register_driver(&fc8101_spi_driver);
+//	res = spi_register_driver(&fc8101_spi_driver);
 	
 	if(res)
 	{
@@ -131,7 +131,7 @@ static int fc8101_spi_write_then_read(struct spi_device *spi, u8 *txbuf, u16 tx_
 	x.len = tx_length + rx_length;
 	x.cs_change = 0; // 0 : CS is alternate per transfer, 1 : CS is alternate per 8/16/24/32 bit which is setted in spi_setup
 	x.bits_per_word = 8;
-	res = spi_sync(spi, &message);
+//	res = spi_sync(spi, &message);
 
 	memcpy(rxbuf, x.rx_buf + tx_length, rx_length);
 	
