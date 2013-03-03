@@ -35,6 +35,7 @@
 
 #include <linux/input/lge_touch_core.h>
 
+#include "board_lge.h"
 struct lge_touch_data
 {
 	void*			h_touch;
@@ -552,6 +553,9 @@ int ghost_finger_solution(struct lge_touch_data *ts)
 	if(ts->gf_ctrl.stage & GHOST_STAGE_1){
 		if(ts->ts_data.total_num == 0 && ts->ts_data.curr_button.state == 0){
 			if(ts->gf_ctrl.count < ts->gf_ctrl.min_count || ts->gf_ctrl.count >= ts->gf_ctrl.max_count){
+				if(ts->gf_ctrl.stage & GHOST_STAGE_2)
+					ts->gf_ctrl.ghost_check_count = MAX_GHOST_CHECK_COUNT - 1;
+				else
 				ts->gf_ctrl.ghost_check_count = 0;
 			}
 			else {
@@ -878,7 +882,8 @@ static void touch_work_func_a(struct work_struct *work)
 	u8 report_enable = 0;
 	int int_pin = 0;
 	int next_work = 0;
-
+	static u8 pre_stage;
+	
 	atomic_dec(&ts->next_work);
 	ts->ts_data.total_num = 0;
 
@@ -925,6 +930,10 @@ static void touch_work_func_a(struct work_struct *work)
 		if(ghost_finger_solution(ts)){
 			TOUCH_ERR_MSG("ghost_finger_solution was failed\n");
 			goto err_out_critical;
+		}
+		if(pre_stage != ts->gf_ctrl.stage){
+			pre_stage = ts->gf_ctrl.stage;
+			printk("[TOUCH] Ghost Finger Stage : %d\n", pre_stage);
 		}
 	}
 
@@ -1969,6 +1978,11 @@ static ssize_t show_fw_info(struct lge_touch_data *ts, char *buf)
 	ret += sprintf(buf+ret, "manufacturer_id  = %d\n", ts->fw_info.manufacturer_id);
 	ret += sprintf(buf+ret, "product_id       = %s\n", ts->fw_info.product_id);
 	ret += sprintf(buf+ret, "fw_rev           = %d\n", ts->fw_info.fw_rev);
+	if (ts->pdata->role->operation_mode) {
+			ret += sprintf(buf+ret, "operation mode 	= interrupt\n");
+		} else {
+			ret += sprintf(buf+ret, "operation mode 	= polling\n");
+		}
 
 	return ret;
 }
@@ -2024,7 +2038,7 @@ static ssize_t show_fw_ver(struct lge_touch_data *ts, char *buf)
 {
 	int ret = 0;
 
-	ret = sprintf(buf, "%d\n", ts->fw_info.fw_rev);
+	ret = sprintf(buf, "Touch FW Ver : %d\n", ts->fw_info.fw_rev);
 	return ret;
 }
 
@@ -2196,10 +2210,15 @@ static ssize_t store_keyguard_info(struct lge_touch_data *ts, const char *buf, s
 	sscanf(buf, "%d", &value);
 
 	if(value == KEYGUARD_ENABLE)
+	{
 		ts->gf_ctrl.stage = GHOST_STAGE_1 | GHOST_STAGE_2 | GHOST_STAGE_3;
+		printk("[TOUCH] Key guard value : %d\n[TOUCH] Ghost stage : %d", value, ts->gf_ctrl.stage);
+	}		
 	else if(value == KEYGUARD_RESERVED)
+	{
 		ts->gf_ctrl.stage &= ~GHOST_STAGE_2;
-
+		printk("[TOUCH] Key guard value : %d\n[TOUCH] Ghost stage : %d", value, ts->gf_ctrl.stage);
+	}
 	if (touch_debug_mask & DEBUG_GHOST){
 		TOUCH_INFO_MSG("ghost_stage = 0x%x\n", ts->gf_ctrl.stage);
 		if(value == KEYGUARD_RESERVED)
@@ -2273,6 +2292,41 @@ static ssize_t store_accuracy_solution(struct lge_touch_data *ts, const char *bu
 	return count;
 }
 
+static ssize_t show_touch_data(struct lge_touch_data *ts, char *buf)
+{
+	int ret = 0;
+
+	ret = sprintf(buf, "====== Touch data ======\n");
+	ret += sprintf(buf+ret, "\t total_num[%d] prev_total_num [%d]\n", ts->ts_data.total_num , ts->ts_data.prev_total_num );
+	ret += sprintf(buf+ret, "\t state         = %d\n", ts->ts_data.state );
+	ret += sprintf(buf+ret, "\t curr_button->key_code     = %d\n", 
+			ts->ts_data.curr_button.key_code );
+	ret += sprintf(buf+ret, "\t curr_button->state     = %d\n", 
+			ts->ts_data.curr_button.state  );
+	ret += sprintf(buf+ret, "\t prev_button->key_code     = %d\n", 
+			ts->ts_data.prev_button.key_code );
+	ret += sprintf(buf+ret, "\t prev_button->state     = %d\n", 
+			ts->ts_data.prev_button.state  );
+
+	return ret;
+}
+
+static ssize_t show_gf_ctrl(struct lge_touch_data *ts, char *buf)
+{
+	int ret = 0;
+
+	ret = sprintf(buf, "====== Ghost ctrl data ======\n");
+	ret += sprintf(buf+ret, "\t stage[%d]\n",ts->gf_ctrl.stage );
+	ret += sprintf(buf+ret, "\t count         = %d\n", ts->gf_ctrl.count);
+	ret += sprintf(buf+ret, "\t min_count     = %d\n", ts->gf_ctrl.min_count );
+	ret += sprintf(buf+ret, "\t max_count     = %d\n", ts->gf_ctrl.max_count );
+	ret += sprintf(buf+ret, "\t ghost_check_count     = %d\n", ts->gf_ctrl.ghost_check_count );
+
+
+	return ret;
+}
+
+
 static ssize_t store_sleep_mode(struct lge_touch_data *ts, const char *buf, size_t count)
 {
 	int ret = 0;
@@ -2301,6 +2355,9 @@ static LGE_TOUCH_ATTR(keyguard, S_IRUGO | S_IWUSR, NULL, store_keyguard_info);
 static LGE_TOUCH_ATTR(virtualkeys, S_IRUGO | S_IWUSR, show_virtual_key, NULL);
 static LGE_TOUCH_ATTR(jitter, S_IRUGO | S_IWUSR, NULL, store_jitter_solution);
 static LGE_TOUCH_ATTR(accuracy, S_IRUGO | S_IWUSR, NULL, store_accuracy_solution);
+static LGE_TOUCH_ATTR(touch_data , S_IRUGO | S_IWUSR, show_touch_data , NULL );
+static LGE_TOUCH_ATTR(gf_ctrl , S_IRUGO | S_IWUSR, show_gf_ctrl, NULL);
+
 static LGE_TOUCH_ATTR(sleep_mode, S_IRUGO | S_IWUSR, NULL, store_sleep_mode);
 static LGE_TOUCH_ATTR(ta_debouncing_mode, S_IRUGO | S_IWUSR, NULL, store_ta_debouncing_mode);
 
@@ -2316,6 +2373,9 @@ static struct attribute *lge_touch_attribute_list[] = {
 	&lge_touch_attr_virtualkeys.attr,
 	&lge_touch_attr_jitter.attr,
 	&lge_touch_attr_accuracy.attr,
+	&lge_touch_attr_touch_data.attr,
+	&lge_touch_attr_gf_ctrl.attr,
+
 	&lge_touch_attr_sleep_mode.attr,
 	&lge_touch_attr_ta_debouncing_mode.attr,
 	NULL,
@@ -2532,10 +2592,20 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 	touch_ic_init(ts);
 
 	/* Firmware Upgrade Check - use thread for booting time reduction */
+#if defined(CONFIG_MACH_LGE_I_BOARD_VZW) || defined(CONFIG_MACH_LGE_C1_BOARD_MPS)	
+//cayman VZW & MPCS !
+#else
+#ifdef CONFIG_MACH_LGE_120_BOARD_KT
+		if(lge_bd_rev >= LGE_REV_19)// CAYMAN REV over 1.0
+#else
+		if(lge_bd_rev > LGE_REV_15)// CAYMAN REV over D 
+#endif
+#endif
+	{
 	if (touch_device_func->fw_upgrade) {
 		queue_work(touch_wq, &ts->work_fw_upgrade);
 	}
-
+	}//IF(lge_bd_rev)
 	/* jitter solution */
 	if (ts->pdata->role->jitter_filter_enable){
 		ts->jitter_filter.adjust_margin = 100;

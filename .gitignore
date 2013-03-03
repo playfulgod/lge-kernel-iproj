@@ -79,3 +79,6 @@ GTAGS
 *.orig
 *~
 \#*#
+
+# Ignore custom /lib/modules staging folder
+/lib/modules

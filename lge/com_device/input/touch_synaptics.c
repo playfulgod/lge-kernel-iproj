@@ -28,6 +28,8 @@
 
 #include "SynaImage.h"
 
+#include "board_lge.h"
+
 #include <linux/regulator/machine.h>
 
 /* RMI4 spec from (RMI4 spec)511-000136-01_revD
@@ -263,10 +265,28 @@ int synaptics_ts_get_data(struct i2c_client *client, struct t_data* data, struct
 				TOUCH_ERR_MSG("BUTTON_DATA_REG read fail\n");
 				goto err_synaptics_getdata;
 			}
-
+            
 			if (unlikely(touch_debug_mask & DEBUG_BUTTON))
 				TOUCH_DEBUG_MSG("Button register: 0x%x\n", ts->ts_data.button_data_reg);
-
+			
+            {// 0000011 -> menu button, 0011100 -> home button, 1100000 -> back button make 3 bit.
+					if(ts->fw_info->fw_rev>6)
+					{
+						int tmp = 0;
+						
+						if(ts->ts_data.button_data_reg & 0x03)
+							tmp = 0x01;
+						if(ts->ts_data.button_data_reg & 0x1C)
+							tmp = 0x02;
+						if(ts->ts_data.button_data_reg & 0x60)
+							tmp = 0x04;
+													
+						 ts->ts_data.button_data_reg = tmp;
+					}
+			}
+				//20111217 deukgi.shin@lge.com Extend touch button area [S]			
+            printk("touch version %d\n", ts->fw_info->fw_rev);
+			
 			if (ts->ts_data.button_data_reg) {
 				/* pressed - find first one */
 				for (cnt = 0; cnt < ts->pdata->caps->number_of_button; cnt++)
@@ -365,7 +385,7 @@ static int read_page_description_table(struct i2c_client* client)
 int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 {
 #if defined(ARRAYED_TOUCH_FW_BIN)
-	int cnt;
+	//int cnt;
 #endif
 
 	u8 device_status = 0;
@@ -394,6 +414,25 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 	}
 
 #if defined(ARRAYED_TOUCH_FW_BIN)
+	#ifdef CONFIG_MACH_LGE_I_BOARD_LGU
+			strncpy(fw_info->fw_image_product_id, &SynaFirmware[0][16], 10);
+			fw_info->fw_start = (unsigned char *)&SynaFirmware[0][0];
+	#elif defined(CONFIG_MACH_LGE_I_BOARD_VZW) || defined(CONFIG_MACH_LGE_C1_BOARD_MPS) //cayman USA version
+			strncpy(fw_info->fw_image_product_id, &SynaFirmware[0][16], 10);
+			fw_info->fw_start = (unsigned char *)&SynaFirmware[0][0];
+	#else
+			strncpy(fw_info->fw_image_product_id ,&SynaFirmware[1][16], 10);
+			fw_info->fw_start = (unsigned char *)&SynaFirmware[1][0];
+	#endif
+	
+    fw_info->fw_size = sizeof(SynaFirmware[0]);
+	
+#if defined(CONFIG_MACH_LGE_I_BOARD_VZW) || defined(CONFIG_MACH_LGE_C1_BOARD_MPS) //cayman USA version
+	printk("Cayman lge_bd_rev[%d] current FW version[%d] header FW version [%d]\n", lge_bd_rev, fw_info->fw_rev,fw_info->fw_start[31]);
+#else
+	printk("F120 lge_bd_rev[%d] current FW version[%d] header FW version [%d]\n", lge_bd_rev, fw_info->fw_rev,fw_info->fw_start[31]);
+#endif
+/*
 	for (cnt = 0; cnt < sizeof(SynaFirmware)/sizeof(SynaFirmware[0]); cnt++) {
 		strncpy(fw_info->fw_image_product_id, &SynaFirmware[cnt][16], 10);
 		if (!(strncmp(fw_info->product_id , fw_info->fw_image_product_id, 10)))
@@ -401,6 +440,7 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 	}
 	fw_info->fw_start = (unsigned char *)&SynaFirmware[cnt][0];
 	fw_info->fw_size = sizeof(SynaFirmware[0]);
+*/
 #else
 	strncpy(fw_info->fw_image_product_id, &SynaFirmware[16], 10);
 	fw_info->fw_start = (unsigned char *)&SynaFirmware[0];
@@ -602,6 +642,9 @@ int synaptics_ts_probe(struct i2c_client* client)
 		TOUCH_DEBUG_MSG("\n");
 
 	ts = kzalloc(sizeof(struct synaptics_ts_data), GFP_KERNEL);
+	
+	printk("%s() : lge_bd_rev is : %d\n", __func__, lge_bd_rev);
+	
 	if (!ts) {
 		TOUCH_ERR_MSG("Can not allocate memory\n");
 		ret = -ENOMEM;
@@ -702,6 +745,7 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 				TOUCH_ERR_MSG("MELT_CONTROL_REG write fail\n");
 				return -EIO;
 			}
+			printk("[TOUCH] MELT mode\n");
 			break;
 		case BASELINE_FIX:
 			if (unlikely(touch_i2c_write_byte(client, MELT_CONTROL_REG,
@@ -709,6 +753,7 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 				TOUCH_ERR_MSG("MELT_CONTROL_REG write fail\n");
 				return -EIO;
 			}
+			printk("[TOUCH] NO MELT mode\n");
 			break;
 		case BASELINE_REBASE:
 			/* rebase base line */
@@ -725,6 +770,7 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 					return -EIO;
 				}
 			}
+			printk("[TOUCH] Baseline Reset\n");
 			break;
 		default:
 			break;

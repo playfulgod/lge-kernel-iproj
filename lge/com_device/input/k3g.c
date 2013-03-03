@@ -166,6 +166,14 @@ struct k3g_data {
 };
 static struct i2c_client *k3g_i2c_client = NULL;
 
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+//BEGIN:seungkwan.jung
+
+static int gyro_xyz[3]={0,};
+
+//END:seungkwan.jung
+#endif
+
 #ifdef FILE_OPS
 #define	K3G_IOCTL_BASE 80
 /** The following define the IOCTL command values via the ioctl macros */
@@ -331,6 +339,17 @@ static int k3g_report_gyro_values(struct k3g_data *k3g_data)
 	k3g_gyro_data[1] = (int) data.y;
 	k3g_gyro_data[2] = (int) data.z;
 #endif
+
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+
+//BEGIN:seungkwan.jung
+	gyro_xyz[0] =  data.x;
+	gyro_xyz[1] =  data.y;
+	gyro_xyz[2] =  data.z;
+//END:seungkwan.jung
+
+#endif
+
 	if(DEBUG_DEV_DEBOUNCE & debug_mask)
 		printk(KERN_INFO "%s: [k3g] x(%d), y(%d), z(%d)\n", __func__, data.x, data.y, data.z);
 	report_cnt++;
@@ -983,6 +1002,31 @@ exit_self_test:
 	return err ? err : size;
 }
 #endif
+
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+//BEGIN:seungkwan.jung
+static ssize_t data_x(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	
+	return sprintf(buf, "%d\n",gyro_xyz[0]);
+}
+
+static ssize_t data_y(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	
+	return sprintf(buf, "%d\n", gyro_xyz[1]);
+}
+
+static ssize_t data_z(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	
+	return sprintf(buf, "%d\n", gyro_xyz[2]);
+}
+#endif
+
 static ssize_t k3g_show_report_cnt(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct k3g_data *k3g_data  = dev_get_drvdata(dev);
@@ -992,6 +1036,13 @@ static ssize_t k3g_show_report_cnt(struct device *dev, struct device_attribute *
 	else
 		return sprintf(buf, "%d\n", -1);
 }
+
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+static DEVICE_ATTR(X, S_IRUGO, data_x, NULL);
+static DEVICE_ATTR(Y, S_IRUGO, data_y, NULL);
+static DEVICE_ATTR(Z, S_IRUGO, data_z, NULL);
+#endif
+
 static DEVICE_ATTR(enable, /*S_IRUGO | S_IWUSR | S_IWGRP,*/S_IRUGO|S_IWUSR,
 			k3g_show_enable, k3g_set_enable);
 static DEVICE_ATTR(poll_delay, /*S_IRUGO | S_IWUSR | S_IWGRP,*/S_IRUGO|S_IWUSR,
@@ -1006,6 +1057,13 @@ static DEVICE_ATTR(self_test, S_IRUGO | S_IWUSR | S_IWGRP,
 			k3g_show_st_result, k3g_run_self_test);
 static struct attribute *k3g_attributes[] = 
 {
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+//BEGIN:seungkwan.jung
+	&dev_attr_X.attr,
+	&dev_attr_Y.attr,
+	&dev_attr_Z.attr,
+//END:seungkwan.jung
+#endif
 	&dev_attr_enable.attr,
 	&dev_attr_poll_delay.attr,
 #ifdef SELF_TEST_ENABLED
@@ -1184,6 +1242,15 @@ static int k3g_probe(struct i2c_client *client,
 				dev_attr_poll_delay.attr.name);
 		goto err_device_create_file2;
 	}
+	
+#ifdef SELF_TEST_ENABLED
+	if (device_create_file(&input_dev->dev,
+				&dev_attr_self_test) < 0) {
+		pr_err("Failed to create device file(%s)!\n",
+				dev_attr_self_test.attr.name);
+		goto err_device_create_file3;
+	}
+#endif
 
 	if (device_create_file(&input_dev->dev,
 				&dev_attr_gyro_data) < 0) {
@@ -1191,12 +1258,34 @@ static int k3g_probe(struct i2c_client *client,
 				dev_attr_gyro_data.attr.name);
 		goto err_device_create_file4;
 	}
-	
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+	if (device_create_file(&input_dev->dev,
+				&dev_attr_X) < 0) {
+		pr_err("Failed to create device file(%s)!\n",
+				dev_attr_X.attr.name);
+		goto err_device_create_file5;
+	}
+
+	if (device_create_file(&input_dev->dev,
+				&dev_attr_Y) < 0) {
+		pr_err("Failed to create device file(%s)!\n",
+				dev_attr_Y.attr.name);
+		goto err_device_create_file6;
+	}
+
+	if (device_create_file(&input_dev->dev,
+				&dev_attr_Z) < 0) {
+		pr_err("Failed to create device file(%s)!\n",
+				dev_attr_Z.attr.name);
+		goto err_device_create_file7;
+	}
+#endif
+
 	if (device_create_file(&input_dev->dev,
 				&dev_attr_gyro_cnt) < 0) {
 		pr_err("Failed to create device file(%s)!\n",
 				dev_attr_gyro_cnt.attr.name);
-		goto err_device_create_file4;
+		goto err_device_create_file8;
 	}
 #ifdef FILE_OPS
   	err = misc_register(&k3g_misc_device);
@@ -1208,23 +1297,30 @@ static int k3g_probe(struct i2c_client *client,
   	}
 #endif
 
-
-#ifdef SELF_TEST_ENABLED
-	if (device_create_file(&input_dev->dev,
-				&dev_attr_self_test) < 0) {
-		pr_err("Failed to create device file(%s)!\n",
-				dev_attr_self_test.attr.name);
-		goto err_device_create_file3;
-	}
-#endif
-
 	i2c_set_clientdata(client, data);
 	dev_set_drvdata(&input_dev->dev, data);
 
     return 0;
 
+
+err_device_create_file8:
+	device_remove_file(&input_dev->dev, &dev_attr_gyro_cnt);
+
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+
+err_device_create_file7:	
+	device_remove_file(&input_dev->dev, &dev_attr_Z);
+
+err_device_create_file6:	
+	device_remove_file(&input_dev->dev, &dev_attr_Y);
+	
+err_device_create_file5:
+	device_remove_file(&input_dev->dev, &dev_attr_X);
+
+#endif
+
 err_device_create_file4:
-	device_remove_file(&input_dev->dev, &dev_attr_self_test);
+	device_remove_file(&input_dev->dev, &dev_attr_gyro_data);
 #ifdef SELF_TEST_ENABLED
 err_device_create_file3:
 	device_remove_file(&input_dev->dev, &dev_attr_self_test);
@@ -1265,7 +1361,13 @@ static int k3g_remove(struct i2c_client *client)
 #ifdef FILE_OPS
 	misc_deregister(&k3g_misc_device);
 #endif
-
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+//BEGIN:seungkwan.jung
+	device_remove_file(&k3g_data->input_dev->dev, &dev_attr_X);
+	device_remove_file(&k3g_data->input_dev->dev, &dev_attr_Y);
+	device_remove_file(&k3g_data->input_dev->dev, &dev_attr_Z);
+//END:seungkwan.jung
+#endif
 	if (k3g_data->enable)
 		err = i2c_smbus_write_byte_data(k3g_data->client,
 					CTRL_REG1, 0x00);
