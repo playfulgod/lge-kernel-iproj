@@ -12,9 +12,15 @@ config LGE_BACKLIGHT_AAT2862
 
 config LGE_BACKLIGHT_LM3530
 	bool "select lm3530 device as LGE backlight management for I "
-	default y
+	default n
 	---help---
 	LGE backlight management (lm3530)
+
+config LGE_BACKLIGHT_LM3537
+	bool "select lm3537 device as LGE backlight management for I "
+	default y
+	---help---
+	LGE backlight management (lm3537)
 
 choice
 	prompt "LGE Display Selection"

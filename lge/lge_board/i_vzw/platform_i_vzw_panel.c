@@ -200,10 +200,12 @@ static void mipi_config_gpio(int on)
 }
 
 #ifdef CONFIG_LGE_DISPLAY_MIPI_LGIT_VIDEO_HD_PT
-extern void lm3530_lcd_backlight_set_level( int level);
+extern void lm3537_lcd_backlight_set_level( int level);
 static int mipi_lgit_backlight_level(int level, int max, int min)
 {
-	lm3530_lcd_backlight_set_level(level);
+	#warning "LM3537 hack"
+	// FIXME To test incremental merge, set back to "lm3530"
+	lm3537_lcd_backlight_set_level(level);
 
 	return 0;
 }
