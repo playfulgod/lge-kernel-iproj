@@ -719,13 +719,18 @@ int msm_camio_sensor_clk_on(struct platform_device *pdev)
 
 // LGE_DOM_UPDATE_S john.park 2011/1/06 {
 // for mclk is still alive while front camera working.
-    if( !strcmp(sinfo->sensor_name,"mt9m114") ) {
+#if defined(CONFIG_LGE_SENSOR_MT9V113) || defined(CONFIG_LGE_SENSOR_MT9M114)
+    if( (!strcmp(sinfo->sensor_name,"mt9v113")) || ( !strcmp(sinfo->sensor_name,"mt9m114") ) ){
       printk("%s[clk should not be enable]: \n", __func__);
-      return rc;
-    } else {
+    } 
+    else
+#endif
+    {
       printk("[CAMERA]: %s[clk should be enable]: \n", __func__);
-	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
+      return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
     }
+    return rc;
+
 // LGE_DOM_UPDATE_S john.park 2011/1/06 }      
 //     return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
 }
@@ -736,13 +741,22 @@ int msm_camio_sensor_clk_off(struct platform_device *pdev)
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
 	msm_camera_vreg_disable();
 	camdev->camera_gpio_off();
-    if( !strcmp(sinfo->sensor_name,"mt9m114") ) {
-      printk("%s[clk should not be disable]: \n", __func__);
-      return 0;
-    } else {
-      printk("[CAMERA]: %s[clk should be disable]: \n", __func__);
-	return msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
-    }	
+// LGE_DOM_UPDATE_S john.park 2011/1/06 {
+// for mclk is still alive while front camera working.
+#if defined(CONFIG_LGE_SENSOR_MT9V113) || defined(CONFIG_LGE_SENSOR_MT9M114)
+    if( (!strcmp(sinfo->sensor_name,"mt9v113")) || ( !strcmp(sinfo->sensor_name,"mt9m114") ) ){
+      printk("%s[clk should not be enable]: \n", __func__);
+    } 
+    else
+#endif
+    {
+    	printk("[CAMERA]: %s[clk should be enable]: \n", __func__);
+    	return msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
+    }
+
+	return 0;
+// LGE_DOM_UPDATE_S john.park 2011/1/06 }	
+//	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
 
 }
 
