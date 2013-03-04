@@ -991,6 +991,8 @@ static __init struct clkctl_acpu_speed *select_freq_plan(void)
 	speed_bin = pte_efuse & 0xF;
 	if (speed_bin == 0xF)
 		speed_bin = (pte_efuse >> 4) & 0xF;
+	#warning "If the CPU will not run comment this out"
+	speed_bin = 0x01;
 
 	pvs = (pte_efuse >> 10) & 0x7;
 	if (pvs == 0x7)
