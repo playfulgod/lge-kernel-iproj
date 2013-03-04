@@ -225,6 +225,29 @@ int max17040_get_mvolts(void)
 }
 extern void arch_reset(char mode, const char *cmd);
 extern acc_cable_type get_ext_cable_type_value(void);
+#if defined(CONFIG_LGE_PM_CAYMAN_VZW) || defined(CONFIG_LGE_PM_CAYMAN_MPCS)
+int max17040_get_capacity_percent(void)
+{
+    u8 buf[5];
+    long batt_soc = 50;
+    max17040_read_data(max17040_i2c_client, MAX17040_SOC_MSB, &buf[0], 2);
+
+    batt_soc = buf[0];
+    batt_soc = ((((buf[0]*256)+buf[1]) * 3906) / MAX17040_BATTERY_FULL) / 10000;
+    if (batt_soc >= 100)
+    {
+        batt_soc = 100;
+    }
+    else if (batt_soc < 0)
+    {
+        batt_soc = 0;
+    }
+#ifdef LGE_DEBUG_FINAL
+    pr_info("max17040_get_capacity_percent: Battery SOC is %d\n", (int)batt_soc);
+#endif
+    return (int)batt_soc;
+}
+#else /*  defined(CONFIG_LGE_PM_CAYMAN_VZW) || defined(CONFIG_LGE_PM_CAYMAN_MPCS) */
 int max17040_get_capacity_percent(void)
 {
 	u8 buf[5];
@@ -262,15 +285,21 @@ int max17040_get_capacity_percent(void)
 		return pre_soc;
 	}
 
-	if(lge_battery_info == 0)
+	//if(lge_battery_info == 0)
 	{
 	batt_soc = ((buf[0]*256)+buf[1])*19531; /* 0.001953125 */
 #ifdef LGE_DEBUG_FINAL
 	debug_soc = batt_soc;
 #endif
-#if 0
-		batt_soc /= 10000000;
-		if (batt_soc >= 100) batt_soc = 100;
+#ifdef CONFIG_MACH_LGE_I_BOARD //20111123 ws.yang@lge.com add to fix soc value of 1700ma
+	batt_soc = (batt_soc - 13000000)/98700;  //cutoff voltage 3.3V
+    // pr_info("[Fuel Gauge] batt_soc_calculated = %d\n", (int)batt_soc);
+    if (batt_soc > 10000)
+    batt_soc = 100;
+    else if (batt_soc <= 0)
+    batt_soc = 0;
+    else
+    batt_soc /= 100;
 #else
 		batt_soc /= 96000;
    		if (batt_soc > 10000) batt_soc = 100;
@@ -280,6 +309,9 @@ int max17040_get_capacity_percent(void)
 
 	if (batt_soc == 0) {
                 vbatt_mv = max17040_get_mvolts();
+#ifdef CONFIG_MACH_LGE_I_BOARD //20111123 ws.yang@lge.com add to voltage of 3.3v cut off
+				if (vbatt_mv > 3300) batt_soc = 1;
+#else
                 if (vbatt_mv > batt_mvolts_compare) batt_soc = 1;
                 if (check_soc < LGE_CHECK_SOC) check_soc++;
                 else if (batt_mvolts_drop_cnt != 0) {
@@ -289,6 +321,7 @@ int max17040_get_capacity_percent(void)
                         else if (batt_mvolts_drop_cnt == 1) batt_mvolts_compare += 20;
                         batt_mvolts_drop_cnt--;
                 }
+#endif //	CONFIG_MACH_LGE_I_BOARD
 #ifdef LGE_DEBUG
                 pr_info("%s: count:%d check_soc:%d batt_soc:%d compare(%d:%d)\n", __func__, batt_mvolts_drop_cnt, check_soc,
                                 (int)batt_soc, batt_mvolts_compare, vbatt_mv);
@@ -299,25 +332,9 @@ int max17040_get_capacity_percent(void)
 		vbatt_mv = max17040_get_mvolts();
 #endif	
 	}
-	else if(lge_battery_info == 1)
-	{
-		batt_soc = buf[0];
+
 #ifdef LGE_DEBUG_FINAL
-		debug_soc = batt_soc;
-#endif
-#if 0
-		if (batt_soc >= 100) batt_soc = 100;
-#else
-//		batt_soc /= 96;
-		batt_soc = batt_soc * 100 / 96;
-   		if (batt_soc > 100) batt_soc = 100;
-#endif
-#ifdef LGE_DEBUG_FINAL
-		vbatt_mv = max17040_get_mvolts();
-#endif	
-	}
-#ifdef LGE_DEBUG_FINAL
-    pr_debug("[FuelGuage battinfo =%d] FG:[org]%d->%ld, FG:[transe96per->100per]%d, MV:%d\n", lge_battery_info,(int)(debug_soc/10000000), debug_soc, (int)batt_soc, vbatt_mv);
+    pr_info("[FuelGuage battinfo =%d] FG:[org]%d->%ld, FG:[transe98.7per->100per]%d, MV:%d\n", lge_battery_info,(int)(debug_soc/10000000), debug_soc, (int)batt_soc, vbatt_mv);
 #endif /* LGE_DEBUG_FINAL */
 
     cur_soc = (int)batt_soc;
@@ -350,6 +367,7 @@ int max17040_get_capacity_percent(void)
 #endif	
     return cur_soc;
 }
+#endif /*  defined(CONFIG_LGE_PM_CAYMAN_VZW) || defined(CONFIG_LGE_PM_CAYMAN_MPCS) */
 
 #ifdef CONFIG_MACH_LGE_I_BOARD
 /* [LGE_UPDATE_ S : For Fuel Gauge Tuning] */
@@ -616,9 +634,15 @@ EXPORT_SYMBOL(max17040_quick_start);
 
 void max17040_update_rcomp(int temp)
 {
+#ifdef CONFIG_MACH_LGE_I_BOARD // 20120215 ws.yang@lge.com
+	u8 startingRcomp = 0x60;
+	int tempCoHot = -125;	//-12.5
+	int tempCoCold = -3425; //-342.5
+#else
 	u8 startingRcomp = 0x4D;
 	int tempCoHot = -55;
 	int tempCoCold = -535;
+#endif	
 	int newRcomp = 0;
 	u8 buf[5];
 
@@ -630,27 +654,23 @@ void max17040_update_rcomp(int temp)
 #ifdef LGE_DEBUG
 	max17040_read_data(max17040_i2c_client, MAX17040_RCOMP_MSB, &buf[2], 2);
 #endif
-	if(lge_battery_info == 0)
+	//if(lge_battery_info == 0)
 	{
-	if (temp > 20)
+#ifdef CONFIG_MACH_LGE_I_BOARD // 20120215 ws.yang@lge.com
+                if (temp > 20)
+                newRcomp = startingRcomp + (int)((temp - 20)*tempCoHot/1000);
+                else if (temp < 20)
+                newRcomp = startingRcomp + (int)((temp - 20)*tempCoCold/1000);
+                else
+                newRcomp = startingRcomp;
+#else
+		if (temp > 20)
 		newRcomp = startingRcomp + (int)((temp - 20)*tempCoHot/100);
 	else if (temp < 20)
 		newRcomp = startingRcomp + (int)((temp - 20)*tempCoCold/100);
 	else
 		newRcomp = startingRcomp;
-	}
-	else if(lge_battery_info == 1)
-	{
-		startingRcomp = 0xC0;
-		tempCoHot = 11;
-		tempCoCold = 5;
-		
-		if (temp > 20)
-			newRcomp = startingRcomp - (int)((temp - 20)*tempCoHot/10);
-		else if (temp < 20)
-			newRcomp = startingRcomp + (int)((20 - temp)*tempCoCold);
-		else
-			newRcomp = startingRcomp;
+#endif		
 	}
 	
 	if (newRcomp > 0xFF)
@@ -759,21 +779,18 @@ static void max17040_get_soc(struct i2c_client *client)
 
 	max17040_read_data(client, MAX17040_SOC_MSB, &buf[0], 2);
 
-	if(lge_battery_info == 0)
+	//if(lge_battery_info == 0)
 	{
 		soc = ((buf[0]*256) + buf[1])*19531; /* 0.001953125 */
 		soc /= 10000000;
 	}
-	else if(lge_battery_info == 1)
-	{
-		soc = buf[0];
-	}
+	
 	chip->soc = (int)soc;
 	if (chip->soc > 100) chip->soc = 100;
 #else
 	u8 msb;
 	u8 lsb;
-
+	
 	msb = max17040_read_reg(client, MAX17040_SOC_MSB);
 	lsb = max17040_read_reg(client, MAX17040_SOC_LSB);
 
@@ -866,9 +883,6 @@ static int __devinit max17040_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct max17040_chip *chip;
-#if 0 /* platform-bsp@lge.com (20111206) : not necessary function */
-	int ret;
-#endif
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
@@ -896,14 +910,6 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	chip->battery.properties	= max17040_battery_props;
 	chip->battery.num_properties	= ARRAY_SIZE(max17040_battery_props);
 
-#if 0 /* platform-bsp@lge.com (20111206) : not necessary function */
-	ret = power_supply_register(&client->dev, &chip->battery);
-	if (ret) {
-		dev_err(&client->dev, "failed: power supply register\n");
-		kfree(chip);
-		return ret;
-	}
-#endif
 
 //#ifdef CONFIG_LGE_FUEL_GAUGE
 //	max17040_quick_start(); /* move the SBL3 */
@@ -927,9 +933,6 @@ static int __devexit max17040_remove(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-#if 0 /* platform-bsp@lge.com (20111206) : not necessary function */
-	power_supply_unregister(&chip->battery);
-#endif
 	cancel_delayed_work(&chip->work);
 	kfree(chip);
 	return 0;
