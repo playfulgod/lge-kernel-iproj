@@ -199,7 +199,7 @@ void lm3537_lcd_backlight_set_level( int level)
 			lm3537_backlight_on(level);
 		}
 
-		//printk("%s() : level is : %d\n", __func__, level);
+		printk("%s() : level is : %d\n", __func__, level);
 	}else{
 		printk("%s(): No client\n",__func__);
 	}

@@ -185,6 +185,7 @@ static int mipi_lgd_lcd_on(struct platform_device *pdev)
 	return 0;
 }
 
+extern void lm3537_lcd_backlight_set_level(int);
 static int mipi_lgd_lcd_off(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -200,6 +201,9 @@ static int mipi_lgd_lcd_off(struct platform_device *pdev)
 //	mipi_dsi_cmds_tx(mfd,&lgd_tx_buf, main_sleep_in, ARRAY_SIZE(main_sleep_in));	
 //	mipi_dsi_cmds_tx(mfd,&lgd_tx_buf, main_deep_standby_in, ARRAY_SIZE(main_deep_standby_in));	
 	mipi_lgd_lcd_reset_pin_off();
+// XXX HACK XXX
+#warning "sick hack to get the screen off"
+	lm3537_lcd_backlight_set_level(0);
 	return 0;
 }
 

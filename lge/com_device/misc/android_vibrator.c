@@ -95,12 +95,12 @@ static void android_vibrator_on(struct work_struct *work)
 	int gain = atomic_read(&vib->vibe_gain);
 	//printk(KERN_INFO "LGE:%s\n", __func__);
 	// suspend /resume logging test	
-	printk(KERN_INFO"%s is stating ... \n", __func__);
+	//printk(KERN_INFO"%s is stating ... \n", __func__);
 	
 	android_vibrator_force_set(vib, gain);
 
 	// suspend /resume logging test	
-	printk(KERN_INFO"%s is exting ... \n", __func__);
+	//printk(KERN_INFO"%s is exting ... \n", __func__);
 }
 
 static void android_vibrator_off(struct work_struct *work)
@@ -108,13 +108,13 @@ static void android_vibrator_off(struct work_struct *work)
 	struct timed_vibrator_data *vib = container_of(work, struct timed_vibrator_data, work_vibrator_off);
 
 	// suspend /resume logging test	
-	printk(KERN_INFO"%s is stating ... \n", __func__);
+	//printk(KERN_INFO"%s is stating ... \n", __func__);
 	
 	//printk(KERN_INFO "LGE:%s\n", __func__);
 	android_vibrator_force_set(vib, 0);
 
 	// suspend /resume logging test	
-	printk(KERN_INFO"%s is exting ... \n", __func__);
+	//printk(KERN_INFO"%s is exting ... \n", __func__);
 }
 
 static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
@@ -147,7 +147,7 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	unsigned long	flags;
 
 	// suspend /resume logging test	
-	printk(KERN_INFO"%s is stating ... \n", __func__);
+	//printk(KERN_INFO"%s is stating ... \n", __func__);
 	
 #if 0	
 	int gain = atomic_read(&vib->vibe_gain);
@@ -184,7 +184,7 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 
 
 	// suspend /resume logging test	
-	printk(KERN_INFO"%s is exting ... \n", __func__);
+	//printk(KERN_INFO"%s is exting ... \n", __func__);
 }
 
 static ssize_t vibrator_amp_show(struct device *dev, struct device_attribute *attr, char *buf)
