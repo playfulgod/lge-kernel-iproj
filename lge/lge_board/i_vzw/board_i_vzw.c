@@ -1789,8 +1789,8 @@ static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 static struct touch_device_caps touch_caps = {
 	.button_support 			= 1,
 	.y_button_boundary			= 0,
-	.number_of_button 			= 3,
-	.button_name 				= {KEY_MENU,KEY_HOMEPAGE,KEY_BACK},
+	.number_of_button 			= 4,
+	.button_name 				= {KEY_MENU,KEY_HOMEPAGE,KEY_BACK,KEY_SEARCH},
 	.button_margin 				= 10,
 	.is_width_supported 		= 1,
 	.is_pressure_supported 		= 1,
@@ -6499,8 +6499,8 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 	platform_add_devices(early_regulators, ARRAY_SIZE(early_regulators));
 
 	//backlight off before mipi shutdown
-	gpio_tlmm_config(GPIO_CFG(49, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
-	gpio_set_value(49, 0);
+//	gpio_tlmm_config(GPIO_CFG(49, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
+//	gpio_set_value(49, 0);
 
 	msm_clock_init(&msm8x60_clock_init_data);
 

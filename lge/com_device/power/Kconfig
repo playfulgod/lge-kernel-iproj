@@ -218,3 +218,10 @@ config LGE_PM_PLATFORM_BSP_DEBUG
   bool "LGE PLATFORM BSP DEBUG"
   help
     LGE debug platform-bsp   
+
+config LGE_PM_CAYMAN_VZW
+  depends on ARCH_MSM8X60
+  default n
+  bool "LGE_PM_CAYMAN_VZW"
+  help
+    CAYMAN VZW PM should be checked for VS840

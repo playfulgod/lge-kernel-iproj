@@ -1488,7 +1488,7 @@ static int do_get_model(struct fsg_common *common, struct fsg_buffhd *bh)
 {
 	u8	*buf = (u8 *) bh->buf;
 
-	strcpy(buf, "VS920");
+	strcpy(buf, "VS840");
 	return strlen(buf);
 }
 

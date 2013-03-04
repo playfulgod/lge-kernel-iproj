@@ -154,12 +154,12 @@ vreg_l15_fail:
 }
 #endif 
 
-#if defined (CONFIG_LGE_MACH_BOARD_REVA)
+#if defined (CONFIG_LGE_MACH_BOARD_REVA) && !defined (CONFIG_MACH_LGE_I_BOARD_VZW)
 #define GPIO_AXIS_I2C_SDA			72	
 #define GPIO_AXIS_I2C_SCL			73	
 #define GPIO_SENSOR_I2C_SDA		116 
 #define GPIO_SENSOR_I2C_SCL		115 
-#elif defined (CONFIG_LGE_MACH_BOARD_REVB)||defined (CONFIG_LGE_MACH_BOARD_REVC)
+#elif defined (CONFIG_LGE_MACH_BOARD_REVB)||defined (CONFIG_LGE_MACH_BOARD_REVC) || defined (CONFIG_MACH_LGE_I_BOARD_VZW)
 #define GPIO_AXIS_I2C_SDA			116	
 #define GPIO_AXIS_I2C_SCL			115
 #define GPIO_SENSOR_I2C_SDA		72
@@ -327,7 +327,11 @@ static struct ami306_platform_data dcompss_pdata = {
 	.exit = ami306_exit,
 	.power_on = sensor_power_on,
 	.power_off = sensor_power_off,
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+	.fdata_mDir = 2,
+#else
 	.fdata_mDir = 10,
+#endif
 	.fdata_sign_x = -1,
 	.fdata_sign_y = 1,
 	.fdata_sign_z = -1,
@@ -349,7 +353,11 @@ static struct apds9900_platform_data proximity_pdata = {
 	.prox_int_low_threshold = 0,
 	.prox_int_high_threshold = 500,
 	.als_threshold_hsyteresis = 30,
+#ifdef CONFIG_MACH_LGE_I_BOARD_VZW
+	.ppcount = 4,
+#else
 	.ppcount = 6,
+#endif
 	.B = 1951,
 	.C = 747,
 	.D = 1414,
