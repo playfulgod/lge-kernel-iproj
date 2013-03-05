@@ -3137,6 +3137,7 @@ static struct ion_platform_data ion_pdata = {
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *)&co_ion_pdata,
 		},
+#if 0
 		{
 			.id	= ION_CAMERA_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
@@ -3145,6 +3146,7 @@ static struct ion_platform_data ion_pdata = {
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = &co_ion_pdata,
 		},
+#endif
 		{
 			.id	= ION_CP_WB_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CP,
@@ -3246,7 +3248,7 @@ static void reserve_ion_memory(void)
 	msm8x60_reserve_table[MEMTYPE_SMI].size += MSM_ION_MM_FW_SIZE;
 	msm8x60_reserve_table[MEMTYPE_SMI].size += MSM_ION_MM_SIZE;
 	msm8x60_reserve_table[MEMTYPE_SMI].size += MSM_ION_MFC_SIZE;
-	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_CAMERA_SIZE;
+//	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_CAMERA_SIZE;
 	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_WB_SIZE;
 	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_AUDIO_SIZE;
 #endif
@@ -5381,7 +5383,7 @@ struct msm_sdcc_pad_drv_cfg {
 static struct msm_sdcc_pad_drv_cfg sdc3_pad_on_drv_cfg[] = {
 	{TLMM_HDRV_SDC3_CLK, GPIO_CFG_8MA},
 	{TLMM_HDRV_SDC3_CMD, GPIO_CFG_8MA},
-	{TLMM_HDRV_SDC3_DATA, GPIO_CFG_8MA}
+	{TLMM_HDRV_SDC3_DATA, GPIO_CFG_4MA}
 };
 
 static struct msm_sdcc_pad_pull_cfg sdc3_pad_on_pull_cfg[] = {
