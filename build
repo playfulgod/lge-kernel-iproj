@@ -1,17 +1,24 @@
 #!/bin/bash
-
 cpus=$(grep "^processor" /proc/cpuinfo | wc -l)
 
-ARCH=arm
-CROSS_COMPILE="/usr/local/linaro-4.6/bin/arm-eabi-"
-#CROSS_COMPILE="/usr/local/arm-2009q3/bin/arm-none-eabi-"
+make mrproper -j16
 
-CCACHE_BINARY=$(which ccache)
-if [ -s "$CCACHE_BINARY" ]; then
-	CROSS_COMPILE="ccache $CROSS_COMPILE"
+make ARCH=arm connect_defconfig
+ARCH=arm 
+ARCH=arm CROSS_COMPILE="/media/playfulgod/Android1/CM10/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-" make -j16
+#ARCH=arm CROSS_COMPILE="/media/playfulgod/Android1/CM10/prebuilts/gcc/linux-x86/arm/linaro-4.7/bin/arm-eabi-"
+#ARCH=arm CROSS_COMPILE=/media/playfulgod/Android1/CM10/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi- make -j16
+
+# These move files to easier locations
+mkdir arch/arm/boot/modules
+find -name '*.ko' -exec cp -av {} arch/arm/modules/ \;
+
+if [ -f arch/arm/boot/zImage ]; then
+	  echo
+      echo "Plague has been compiled!!! You can find it in arch/arm/boot/zImage"
+	  echo
+else
+      echo
+	  echo "Kernel did not compile, please check for errors!!"
+	  echo
 fi
-
-export ARCH
-export CROSS_COMPILE
-
-time make -j${cpus} $@
