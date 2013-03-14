@@ -3734,8 +3734,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("cam_clk",		cam_clk.c,		"1-001a"),
 	CLK_LOOKUP("csi_clk",		csi0_clk.c,		NULL),
 #if CONFIG_LGE_CAMERA //jisun.shin@lge.com
+#if defined (CONFIG_LGE_SENSOR_MT9M114)
 	CLK_LOOKUP("csi_clk",		csi1_clk.c, "msm_camera_mt9m114.0"),
-#else
+#elif defined (CONFIG_LGE_SENSOR_MT9V113)
+  CLK_LOOKUP("csi_clk",       csi1_clk.c, "msm_camera_mt9v113.0"),
+#endif
 	CLK_LOOKUP("csi_clk",		csi0_clk.c,		"msm_csic.0"),
 	CLK_LOOKUP("csi_clk",		csi1_clk.c, "msm_camera_ov7692.0"),
 	CLK_LOOKUP("csi_clk",		csi1_clk.c, "msm_camera_ov9726.0"),
@@ -3780,7 +3783,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("core_clk",		vpe_clk.c,	"footswitch-8x60.9"),
 	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c,		NULL),
 #if CONFIG_LGE_CAMERA //jisun.shin@lge.com
+#if defined (CONFIG_LGE_SENSOR_MT9M114)
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_camera_mt9m114.0"),
+#elif defined (CONFIG_LGE_SENSOR_MT9V113)
+  CLK_LOOKUP("csi_vfe_clk",   csi1_vfe_clk.c, "msm_camera_mt9v113.0"),
+#endif
 #else
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_camera_ov7692.0"),
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_camera_ov9726.0"),
@@ -3800,7 +3807,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("arb_clk",		amp_p_clk.c,		"mipi_dsi.1"),
 	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,		NULL),
 #if CONFIG_LGE_CAMERA //jisun.shin@lge.com
+#if defined (CONFIG_LGE_SENSOR_MT9M114)
 	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c, "msm_camera_mt9m114.0"),
+#elif defined (CONFIG_LGE_SENSOR_MT9V113)
+  CLK_LOOKUP("csi_pclk",    csi1_p_clk.c, "msm_camera_mt9v113.0"),
+#endif
 #else
 	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,		"msm_csic.0"),
 	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c, "msm_camera_ov7692.0"),
