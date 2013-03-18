@@ -1,6 +1,6 @@
 #!/bin/bash
 cpus=$(grep "^processor" /proc/cpuinfo | wc -l)
-
+rm -rf arch/arm/boot/modules
 make mrproper -j16
 
 make ARCH=arm connect_defconfig
@@ -11,7 +11,7 @@ ARCH=arm CROSS_COMPILE="/media/playfulgod/Android1/CM10/prebuilts/gcc/linux-x86/
 
 # These move files to easier locations
 mkdir arch/arm/boot/modules
-find -name '*.ko' -exec cp -av {} arch/arm/modules/ \;
+find -name '*.ko' -exec cp -av {} arch/arm/boot/modules/ \;
 
 if [ -f arch/arm/boot/zImage ]; then
 	  echo

@@ -2183,7 +2183,7 @@ CONFIG_MSM_CAMERA=y
 # Camera Sensor Selection
 #
 CONFIG_MT9D113=y
-# CONFIG_IMX074 is not set
+#CONFIG_IMX074=y
 # CONFIG_OV5640 is not set
 # CONFIG_MT9M114 is not set
 # CONFIG_WEBCAM_OV7692 is not set
