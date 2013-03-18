@@ -217,7 +217,6 @@ static struct clkctl_acpu_speed acpu_freq_tbl_1188mhz[] = {
   { {0, 0}, 0 },
 };
 
-#ifndef CONFIG_MSM8X60_CLOCK_FREQTBL_NO_SLOW
 /* SCPLL frequencies = 2 * 27 MHz * L_VAL */
 static struct clkctl_acpu_speed acpu_freq_tbl_slowest[] = {
   { {1, 1},  192000,  ACPU_PLL_8, 3, 1, 0, 0,    L2(1),   800000, 0x03006000},
@@ -316,7 +315,6 @@ static struct clkctl_acpu_speed acpu_freq_tbl_slow[] = {
   { {1, 1}, 1674000,  ACPU_SCPLL, 0, 0, 1, 0x1F, L2(19), 1250000, 0x03006000},
   { {0, 0}, 0 },
 };
-#endif
 
 /* SCPLL frequencies = 2 * 27 MHz * L_VAL */
 static struct clkctl_acpu_speed acpu_freq_tbl_nom[] = {
@@ -648,7 +646,7 @@ static void switch_sc_speed(int cpu, struct clkctl_acpu_speed *tgt_s)
 	drv_state.current_speed[cpu] = tgt_s;
 }
 
-static int _acpuclk_8x60_set_rate(int cpu, unsigned long rate,
+static int acpuclk_8x60_set_rate(int cpu, unsigned long rate,
 				 enum setrate_reason reason)
 {
 	struct clkctl_acpu_speed *tgt_s, *strt_s;
@@ -962,13 +960,13 @@ static int __cpuinit acpuclock_cpu_callback(struct notifier_block *nfb,
 		/* Fall through. */
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
-		_acpuclk_8x60_set_rate(cpu, HOT_UNPLUG_KHZ, SETRATE_HOTPLUG);
+		acpuclk_8x60_set_rate(cpu, HOT_UNPLUG_KHZ, SETRATE_HOTPLUG);
 		break;
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 		if (WARN_ON(!prev_khz[cpu]))
 			return NOTIFY_BAD;
-		_acpuclk_8x60_set_rate(cpu, prev_khz[cpu], SETRATE_HOTPLUG);
+		acpuclk_8x60_set_rate(cpu, prev_khz[cpu], SETRATE_HOTPLUG);
 		break;
 	default:
 		break;
@@ -1125,7 +1123,7 @@ static int __init acpuclk_8x60_init(struct acpuclk_soc_data *soc_data)
 
 	/* Improve boot time by ramping up CPUs immediately. */
 	for_each_online_cpu(cpu)
-		_acpuclk_8x60_set_rate(cpu, max_freq->acpuclk_khz, SETRATE_INIT);
+		acpuclk_8x60_set_rate(cpu, max_freq->acpuclk_khz, SETRATE_INIT);
 
 	acpuclk_register(&acpuclk_8x60_data);
 	cpufreq_table_init();

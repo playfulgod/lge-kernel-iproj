@@ -185,7 +185,9 @@ static struct platform_device hdmi_msm_device = {
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 
+/* minjong.gong@lge.com, 2011.01.31 - lgit lcd for MWC board*/
 #define LCD_RESET_N		50
+/* minjong.gong@lge.com, 2011.01.31 - lgit lcd for MWC board*/
 
 static void mipi_config_gpio(int on)
 {
@@ -838,7 +840,7 @@ static struct msm_bus_vectors mdp_1080p_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab = 334080000,
+		.ab = 432384000,
 		.ib = 550000000 * 2,
 	},
 };

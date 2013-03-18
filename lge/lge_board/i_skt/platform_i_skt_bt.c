@@ -132,8 +132,7 @@ static int configure_pcm_gpios(int on)
 			msm_gpiomux_put(pcm_gpios[i]);
 	}
 	return ret;
-}
-
+} 
 static int i_skt_bluetooth_power(int on)
 {
   int ret, pin;

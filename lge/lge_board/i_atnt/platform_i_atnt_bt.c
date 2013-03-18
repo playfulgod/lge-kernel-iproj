@@ -33,6 +33,7 @@
 #endif
 #include <linux/delay.h>
 #include <linux/rfkill.h>
+#include "../../../arch/arm/mach-msm/devices.h"
 
 /* byongdoo.oh@lge.com Broadcomm BT */
 #define BT_RESET_N 138
@@ -200,9 +201,16 @@ static int lge_bluetooth_toggle_radio(void *data, bool state)
 }
 
 
+
+static int bt_status = 0;
+
 static int bluetooth_power(int on)
 {
   int ret, pin;
+
+  if (on == bt_status)
+         return 0;
+
 
   if(on)
     {
@@ -263,6 +271,7 @@ static int bluetooth_power(int on)
             }
         }
     }
+  bt_status = on;
   return 0;
 }
 
@@ -280,6 +289,7 @@ static void __init bt_power_init(void)
 }
 
 
+extern void bluesleep_setup_uart_port(struct platform_device *uart_dev);
 void __init lge_add_btpower_devices(void)
 {
 	bt_power_init();
@@ -293,6 +303,7 @@ void __init lge_add_btpower_devices(void)
 
 	platform_device_register(&msm_bt_power_device);
 	platform_device_register(&msm_bluesleep_device);
+	bluesleep_setup_uart_port(&msm_device_uart_dm1);
 }
 
 #if 0

@@ -29,6 +29,7 @@
 #include <linux/major.h>
 #include <linux/regulator/consumer.h>
 #include <linux/ion.h>
+#include <linux/sync.h>
 #ifdef CONFIG_MSM_BUS_SCALING
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
@@ -95,6 +96,8 @@
 #define ROTATOR_REVISION_V1		1
 #define ROTATOR_REVISION_V2		2
 #define ROTATOR_REVISION_NONE	0xffffffff
+
+#define WAIT_FENCE_TIMEOUT 200
 
 uint32_t rotator_hw_revision;
 
@@ -889,6 +892,58 @@ static void put_img(struct file *p_file, struct ion_handle *p_ihdl)
 	}
 #endif
 }
+static int buf_fence_process(struct mdp_buf_fence *buf_fence)
+{
+	int i, fence_cnt = 0, ret;
+	struct sync_fence *fence;
+	struct sync_fence *acq_fence[MDP_MAX_FENCE_FD];
+	int acq_fen_fd[MDP_MAX_FENCE_FD];
+
+	if (buf_fence->acq_fen_fd_cnt == 0)
+		return 0;
+	if (buf_fence->acq_fen_fd_cnt > MDP_MAX_FENCE_FD)
+		return -EINVAL;
+
+	for (i = 0; i < buf_fence->acq_fen_fd_cnt; i++) {
+		fence = sync_fence_fdget(buf_fence->acq_fen_fd[i]);
+		if (fence == NULL) {
+			pr_info("%s: null fence! i=%d fd=%d\n", __func__, i,
+				buf_fence->acq_fen_fd[i]);
+			ret = -EINVAL;
+			break;
+		}
+		acq_fence[i] = fence;
+		acq_fen_fd[i] = buf_fence->acq_fen_fd[i];
+	}
+	fence_cnt = i;
+	if (ret)
+		goto buf_fence_err_1;
+
+	for (i = 0; i < fence_cnt; i++) {
+		ret = sync_fence_wait(acq_fence[i], WAIT_FENCE_TIMEOUT);
+		if (ret < 0) {
+			pr_err("%s: sync_fence_wait failed! ret = %x\n",
+				__func__, ret);
+			break;
+		}
+		sync_fence_put(acq_fence[i]);
+		put_unused_fd(acq_fen_fd[i]);
+	}
+	if (ret) {
+		while (i < fence_cnt) {
+			sync_fence_put(acq_fence[i]);
+			put_unused_fd(acq_fen_fd[i]);
+			i++;
+		}
+	}
+	return ret;
+buf_fence_err_1:
+	for (i = 0; i < fence_cnt; i++) {
+		sync_fence_put(acq_fence[i]);
+		put_unused_fd(acq_fen_fd[i]);
+	}
+	return ret;
+}
 static int msm_rotator_do_rotate(unsigned long arg)
 {
 	unsigned int status, format;
@@ -910,6 +965,9 @@ static int msm_rotator_do_rotate(unsigned long arg)
 		return -EFAULT;
 
 	mutex_lock(&msm_rotator_dev->rotator_lock);
+
+	buf_fence_process(&info.buf_fence);
+
 	for (s = 0; s < MAX_SESSIONS; s++)
 		if ((msm_rotator_dev->img_info[s] != NULL) &&
 			(info.session_id ==
@@ -1339,18 +1397,15 @@ static int msm_rotator_start(unsigned long arg,
 		info.session_id = (unsigned int)
 			msm_rotator_dev->img_info[first_free_index];
 		*(msm_rotator_dev->img_info[first_free_index]) = info;
-        /* QCT patch start for HDMI rotation of portrait video */
-//		msm_rotator_dev->pid_list[first_free_index] = pid;
 		msm_rotator_dev->fd_info[first_free_index] = fd_info;
-		/* QCT patch end for HDMI rotation of portrait video */
-
-		if (copy_to_user((void __user *)arg, &info, sizeof(info)))
-			rc = -EFAULT;
 	} else if (s == MAX_SESSIONS) {
 		dev_dbg(msm_rotator_dev->device, "%s: all sessions in use\n",
 			__func__);
 		rc = -EBUSY;
 	}
+
+	if (rc == 0 && copy_to_user((void __user *)arg, &info, sizeof(info)))
+		rc = -EFAULT;
 
 rotator_start_exit:
 	mutex_unlock(&msm_rotator_dev->rotator_lock);
